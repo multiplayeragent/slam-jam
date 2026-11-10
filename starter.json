@@ -1,0 +1,21 @@
+{
+  "name": "Slam Jam",
+  "genre": "sports",
+  "dim": "3D",
+  "mode": "Versus",
+  "players": "2–4",
+  "hook": "2-on-2 arcade hoops. Turbo, shove, fly, slam.",
+  "how": "Run with turbo, shove or steal on defence, and let go of your jump shot at the top of the jump. Near the rim, SHOOT takes off for a flying dunk; score 3 in a row and you catch fire until the other team answers.",
+  "controls": "WASD or arrows, J shoot, K pass or steal, Shift turbo · touch: stick, SHOOT, PASS, TURBO",
+  "uses": [
+    ["Host-run physics", "The host's browser owns the ball and rolls every shot, steal and block; if it leaves, the next player takes over."],
+    ["Bots", "Bots fill every empty spot, so even alone you play a full 2-on-2."],
+    ["Leaderboard", "Each player's most points in one game, shown on the results card."],
+    ["Live sync", "Every baller, pass, shot and dunk moves for everyone at once."]
+  ],
+  "ideas": [
+    "Make it a beach court at sunset with a sand floor",
+    "Add a 4-point line way out past the 3-point line",
+    "Give each team a special move on a meter, like a double-turbo"
+  ]
+}

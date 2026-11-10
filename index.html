@@ -1,0 +1,1417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slam Jam</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #0d0f1e; }
+  body { font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #fff; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; touch-action: none; }
+  [hidden] { display: none !important; }
+  .hud { position: fixed; pointer-events: none; text-shadow: 0 2px 4px #000a; }
+  #bug { top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #0a0d1cd9; box-shadow: 0 4px 14px #0008; white-space: nowrap; }
+  #bug .t { display: flex; align-items: center; gap: 8px; padding: 2px 10px; border-radius: 8px; }
+  #bug .t0 { background: #ff6a1a; } #bug .t1 { background: #1e9bff; flex-direction: row-reverse; }
+  #bug .t.me { box-shadow: inset 0 0 0 2px #fff; }
+  #bug .nm { font: 800 12px system-ui, sans-serif; letter-spacing: .06em; }
+  #bug .sc { font: 900 26px/1.1 system-ui, sans-serif; font-variant-numeric: tabular-nums; min-width: 30px; text-align: center; }
+  #bug .hot { font: 900 10px system-ui, sans-serif; padding: 1px 4px; border-radius: 4px; background: #ffd23f; color: #6a1500; text-shadow: none; }
+  #bug .mid { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 64px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  #qtr { font: 700 11px system-ui, sans-serif; opacity: .85; }
+  #clock { font: 800 17px system-ui, sans-serif; } #clock.low { color: #ff5a4a; }
+  #shot { font: 800 11px system-ui, sans-serif; color: #ffd23f; } #shot.low { color: #ff5a4a; }
+  #msg { top: 21%; left: 0; right: 0; text-align: center; padding: 0 12px; font: 900 min(12vw, 74px)/1 system-ui, sans-serif; color: #ffd23f; -webkit-text-stroke: 2px #6a1500;
+         text-shadow: 0 4px 0 #c2410c, 0 10px 22px #000b; opacity: 0; transform: rotate(-4deg) scale(.5); transition: opacity .18s, transform .3s cubic-bezier(.2, 1.7, .4, 1); }
+  #msg.on { opacity: 1; transform: rotate(-4deg) scale(1); }
+  #msg small { display: block; margin-top: 10px; font: 800 18px system-ui, sans-serif; color: #fff; -webkit-text-stroke: 0; text-shadow: 0 2px 5px #000; }
+  #hint { top: calc(max(8px, env(safe-area-inset-top)) + 58px); left: 0; right: 0; text-align: center; font-size: 14px; padding: 0 16px; transition: opacity 1s; }
+  #tag { font: 900 15px system-ui, sans-serif; transform: translate(-50%, -100%); white-space: nowrap; opacity: 0; transition: opacity .2s; }
+  #tag.on { opacity: 1; }
+  #meter { width: 64px; height: 10px; transform: translate(-50%, -100%); border-radius: 6px; background: #000a; border: 2px solid #fffc; overflow: hidden; }
+  #meter i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #ffd23f; }
+  #meter b { position: absolute; top: 0; bottom: 0; left: 46%; width: 8%; background: #4dff88; opacity: .9; }
+  #turbo { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 22px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; font: 800 11px system-ui, sans-serif; letter-spacing: .08em; }
+  #turbo i { position: relative; display: block; width: 120px; height: 9px; border-radius: 5px; background: #0009; border: 1px solid #fff7; overflow: hidden; }
+  #turbo b { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #ff6a1a, #ffd23f); }
+  #turbo.fire b { background: linear-gradient(90deg, #ff2d00, #ffd23f, #fff6a0); }
+  #net { bottom: max(6px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font-size: 12px; opacity: .75; white-space: nowrap; }
+  #stick { position: fixed; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%; border: 2px solid #fff6; background: #ffffff18; pointer-events: none; }
+  #stick i { position: absolute; left: 30px; top: 30px; width: 44px; height: 44px; border-radius: 50%; background: #ffffff66; }
+  #pad { position: fixed; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 34px); width: 196px; height: 176px; touch-action: none; }
+  #pad button { position: absolute; border-radius: 50%; border: 3px solid #ffffffa0; background: #ffffff26; color: #fff; font: 900 14px system-ui, sans-serif; touch-action: none; padding: 0; }
+  #pad button.on { background: #ffffff88; color: #1a1a2e; }
+  #bShoot { right: 0; bottom: 0; width: 90px; height: 90px; border-color: #ffd23f !important; }
+  #bPass { right: 100px; bottom: 4px; width: 72px; height: 72px; }
+  #bTurbo { right: 14px; bottom: 102px; width: 66px; height: 66px; border-color: #ff8a3d !important; font-size: 12px !important; }
+  #over { position: fixed; inset: 0; display: grid; place-items: center; background: #070914b0; }
+  .card { box-sizing: border-box; width: min(380px, calc(100vw - 32px)); max-height: 86vh; overflow: auto; padding: 20px; border-radius: 16px; background: #151a36; border: 1px solid #ffffff26; text-align: center; }
+  .card h2 { margin: 0 0 2px; font-size: 27px; }
+  .card h3 { margin: 14px 0 4px; font-size: 14px; color: #ffd23f; text-align: left; }
+  #final { font: 800 20px system-ui, sans-serif; }
+  table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 3px 4px; text-align: right; } th { color: #9fb0e0; font-weight: 700; }
+  td:first-child, th:first-child { text-align: left; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; } tr.me td { color: #ffd23f; font-weight: 700; }
+  .card ol { text-align: left; margin: 0; padding-left: 26px; font-size: 14px; min-height: 22px; } .card li span { float: right; font-variant-numeric: tabular-nums; }
+  .card p { margin: 8px 0 0; font-size: 13px; opacity: .8; }
+  button.go { width: 100%; min-height: 48px; margin-top: 14px; border: 0; border-radius: 12px; background: #ff7a1a; color: #2a0e00; font: 800 17px system-ui, sans-serif; cursor: pointer; }
+</style>
+<script src="https://cdn.multiplayeragent.com/sdk/mp.global.js"></script>
+<script type="importmap">{ "imports": { "three": "./libs/three.module.min.js" } }</script>
+</head>
+<body>
+<div class="hud" id="bug">
+  <div class="t t0" id="t0"><span class="nm">SUN</span><span class="sc" id="s0">0</span><span class="hot" id="h0" hidden>ON FIRE</span></div>
+  <div class="mid"><span id="qtr">Q1</span><span id="clock">0:45</span><span id="shot"></span></div>
+  <div class="t t1" id="t1"><span class="nm">RIP</span><span class="sc" id="s1">0</span><span class="hot" id="h1" hidden>ON FIRE</span></div>
+</div>
+<div class="hud" id="msg"></div>
+<div class="hud" id="hint"></div>
+<div class="hud" id="tag"></div>
+<div class="hud" id="meter" hidden><i></i><b></b></div>
+<div class="hud" id="turbo" hidden><span>TURBO</span><i><b></b></i></div>
+<div class="hud" id="net">Connecting…</div>
+<div id="stick" hidden><i></i></div>
+<div id="pad" hidden><button id="bTurbo">TURBO</button><button id="bPass">PASS</button><button id="bShoot">SHOOT</button></div>
+<div id="over" hidden><div class="card">
+  <h2 id="winner"></h2><div id="final"></div>
+  <table id="table"></table>
+  <h3>Most points in one game</h3><ol id="board"><li>Loading…</li></ol>
+  <button class="go" id="again">Play again</button><p id="next"></p>
+</div></div>
+<script type="module">
+/* ═══ SLAM JAM · a Multiplayer Agent starter ═══════════════════════════════════════════════
+ * Arcade 2-on-2 basketball on a full court, seen from the side like a TV broadcast.
+ * Sunburners (orange) against Riptides (blue). Versus, 2–4 players; bots fill every empty spot.
+ * Turbo, shoves and steals, blocks, passes, flying dunks, threes, a shot clock, and a player who
+ * scores 3 in a row catches fire until the other team scores.
+ *
+ * WHERE THINGS ARE (search for the "── " headers):
+ *   CONFIG ........ clocks, court size, running, jumping, shooting odds, dunks, defence, bots
+ *   CONNECTION .... MP_CONNECT, joining, the offline room, who is host
+ *   COURT ......... rims, the 3-point line, spots, the ball's flights (shots, passes, dunks), a loose ball
+ *   ARENA ......... renderer, floor, hoops, the crowd, the ballers, the ball, particles, sound
+ *   GAME (HOST) ... seats, the score, the ball, shot results, steals, blocks, quarters. Only the host writes these.
+ *   BOTS .......... the bot brain: drive, dunk, shoot, pass, guard your man, block, crash the boards
+ *   ME ............ my baller: running, turbo, jumping, shooting, passing, stealing
+ *   VIEWS ......... everyone else's ballers, eased between writes; the ball between writes
+ *   DRAW .......... the ballers, the ball, effects and the broadcast camera that follows the ball
+ *   HUD & RESULTS . scorebug, clocks, announcer callouts, results card, leaderboard
+ *   INPUT ......... keyboard, and a thumb stick + SHOOT / PASS / TURBO buttons on touch
+ *   MAIN LOOP ..... one frame: host work, my baller, drawing
+ *
+ * HOW THE MULTIPLAYER WORKS (a relay room: no server code):
+ *   - Each player writes its OWN entity: `p` {x, z, vx, vz, j, a} (its baller on the court, j = jump
+ *     height, a = knocked down / swiping / shooting) about 14 times a second, `hb` (heartbeat) once a
+ *     second, `rdy` (Play again), `n`/`c` (name, color) once.
+ *   - The HOST is the lowest sessionId among live players (heartbeat seen in the last 3s), worked out
+ *     every frame. The ball is shared, so the host owns it. Only the host writes the shared fields:
+ *       `game` {id, v, phase, seats, score, q, ko, liveAt, qEnds, shotEnds, poss, pts, streak, fire, call, …}:
+ *              who plays in which of the 4 seats (sessionIds or bots "b1".."b4"), the score, quarters,
+ *              the clocks (timestamps), who is on fire and the announcer's latest callout. `v` goes up on
+ *              every write; `ko` counts quarter starts (everyone walks back to their spot).
+ *       `ball` {st, own, x, y, z, vx, vy, vz, f, at, b, s}: held by `own`, in a flight `f` (a shot, pass or
+ *              dunk, with its result already decided), or loose; plus every bot's baller in `b`.
+ *   - Everyone else sends intents: "shoot" {x, z, j, q, dunk} (q = how close to the top of your jump you let
+ *     go), "pass" {}, "swipe" {turbo} (steal, or with turbo a shove). The host checks them against the
+ *     latest positions, rolls the result with a seeded random from the flight's number, and writes the
+ *     ball. A flight is written once: every screen draws the arc itself, so shots and dunks fly smoothly.
+ *   - "knock" {id} from the host tells a shoved player to fall over (its own client moves its baller).
+ *   - A new host adopts `game` and `ball` (and the bots in it) and carries on. A host whose tab froze stops
+ *     hosting, waits 0.7s for fresh state, and adopts it, so it never writes its old copy back.
+ *   - ?attract plays offline, bots only (the preview video is recorded from it).
+ *   - Leaderboard "slam-points": each player's most points in one game.
+ */
+import * as THREE from "three";
+
+// ── CONFIG ──────────────────────────────────────────────────────────────────────────
+const CONFIG = {
+  quarters: 4,           // quarters in a game
+  quarterMs: 45000,      // ms of game clock per quarter
+  overtimeMs: 25000,     // a tie after the last quarter plays this much overtime
+  shotClockMs: 14000,    // ms a team has to shoot before the ball goes to the other team
+  readyMs: 2600,         // ms everyone waits on their spot before a quarter starts
+  scoreMs: 1500,         // ms after a basket before the other team takes the ball
+  breakMs: 2600,         // ms between quarters
+  resultsMs: 15000,      // ms on the results card before the next game (Play again skips it)
+  // The court, in metres: x runs along it, z across it; the camera sits on the +z side.
+  courtL: 28, courtW: 15,
+  rimX: 12.6,            // each rim's distance from the middle; Sunburners shoot at +x, Riptides at -x
+  rimY: 3.05, rimR: 0.23, ballR: 0.15,
+  threeR: 6.75,          // shots from further out than this score 3
+  // Running and jumping
+  runSpeed: 6.2, turboSpeed: 9.4, accel: 10, // m/s, and how snappy the start and stop are
+  turboMax: 100, turboDrain: 40, turboRegen: 16, // turbo meter: used per second while held, refilled per second when not
+  jumpV: 6.0, gravity: 16, // jump speed and gravity (a jump peaks after jumpV / gravity seconds)
+  bodyR: 0.42,           // ballers keep twice this apart
+  // Shooting
+  perfectWin: 0.06,      // let go within this many seconds of the top of your jump for a perfect release...
+  releaseWin: 0.34,      // ...this far off it, the release is as bad as it gets
+  shotBase: 0.85, shotPerM: 0.045, shotMin: 0.15, // chance a shot goes in: base, minus this per metre out (never below shotMin)
+  contestR: 1.2, contestX: 0.75, // a defender this close cuts the chance to this share
+  fireAfter: 3,          // baskets in a row (with no answer from the other team) to catch fire
+  fireBonus: 0.25,       // on fire: this much added to every shot's chance, and endless turbo
+  dunkRange: 3.6, dunkRangeTurbo: 6.0, // how close to the rim you can take off for a dunk (further with turbo)
+  dunkMs: [800, 1250],   // hang time of a dunk, from close in to far out
+  dunkPeak: 4.7,         // how high the ball goes on a dunk (the rim is at 3.05)
+  dunkMake: 0.93,        // chance a dunk goes down if nobody blocks it...
+  dunkContested: 0.75,   // ...times this when a defender is on the dunker or under the rim
+  passSpeed: 17,         // m/s
+  intercept: 0.35,       // chance a defender standing in the passing lane picks a pass off
+  // Defence
+  stealR: 1.7, stealChance: 0.32, shoveChance: 0.75, swipeCd: 700, knockMs: 1000, // PASS on defence steals; with turbo it shoves
+  blockR: 1.5, blockChance: 0.6, blockJ: 0.45, // a defender this high in the air, this close, blocks a shot this often
+  pickupR: 1.0,          // how close you must be to grab a loose ball
+  // Bots
+  botSpeed: 0.9,         // share of top speed
+  botThink: 240,         // ms between decisions
+  botThree: 0.3, botMid: 0.2, // share of a bot's possessions it looks for a three, or a jumper (the rest it drives)
+  botDunk: 0.85, botPass: 0.25, // chances, per decision, to dunk when close, and to pass when crowded
+  botSteal: 0.07, botBlock: 0.45, // chances to swipe at the ball, and to jump at a shot
+  botRelease: [0.02, 0.16], // seconds off the perfect release a bot lets go: best, worst
+  sendMs: 70,            // my baller and the ball (~14 a second)
+  board: "slam-points",
+};
+const TEAMS = [{ name: "Sunburners", short: "SUN", color: "#ff6a1a", dark: "#8f2e00" }, { name: "Riptides", short: "RIP", color: "#1e9bff", dark: "#0b3f80" }];
+const COLORS = ["#ffd23f", "#ffffff", "#7cf29a", "#c99bff", "#ff5c8a", "#3ee6d8", "#b6ff4a", "#ffa94d"]; // each baller's own color: headband, shoes, ring
+const BOT_NAMES = ["Rimrattler", "Lefty Lou", "Big Moe", "Zip Zappa"]; // the bot in seat 0..3
+const SKINS = ["#f1c9a5", "#c68a5a", "#8d5a3b", "#e8b48a", "#5e3a24"];
+const CALLS = { // the announcer: our own lines
+  dunk: ["KA-BLAMMALAMMA!", "THUNDER SLAM!", "RIM WRECKER!", "SKY HIGH!", "WHAMMO-JAMMO!"],
+  three: ["FROM DOWNTOWN!", "SPLASH!", "BANG! WAY OUT!", "NOTHING BUT NYLON!"],
+  two: ["BUCKETS!", "IN THE HOLE!", "SMOOTH!", "COUNT IT!"],
+  block: ["SWAT CITY!", "GET THAT OUTTA HERE!", "DENIED!"],
+  steal: ["PICKPOCKET!", "STOLEN!", "TOO SLOW!"],
+  shove: ["TIMBER!", "FLATTENED!"],
+  fire: "ON FIRE!", warm: "getting warm…", buzzer: "AT THE BUZZER!", clock: "SHOT CLOCK!", douse: "fire's out",
+};
+
+// ── CONNECTION ──────────────────────────────────────────────────────────────────────
+// The builder fills these in for this game. Downloaded from GitHub? Put your own pk_ key here.
+const MP_CONNECT = {
+  key: 'pk_REPLACE_ME',
+  room: 'slam-jam',
+  endpoint: 'wss://live.multiplayeragent.com',
+  apiUrl: 'https://api.multiplayeragent.com',
+};
+const ATTRACT = new URLSearchParams(location.search).has("attract");
+const TEST = new URLSearchParams(location.search).has("test");
+
+/** Same shape as the SDK client, kept in this tab: offline play and ?attract. */
+function localRoom() {
+  const id = "local", state = { entities: { players: { [id]: {} } }, shared: {} }, subs = [];
+  let queued = false;
+  const emit = () => { if (!queued) { queued = true; queueMicrotask(() => { queued = false; subs.forEach((f) => f(state)); }); } };
+  const put = (o, k, v) => { if (typeof k === "object") Object.assign(o, k); else o[k] = v; emit(); };
+  return {
+    sessionId: id, state, offline: true,
+    me: { set: (k, v) => put(state.entities.players[id], k, v) },
+    setShared: (k, v) => put(state.shared, k, v),
+    onState: (f) => { subs.push(f); f(state); }, onJoin() {}, onLeave() {}, on() {}, send() {},
+    onDisconnect() {}, onReconnect() {}, leave: async () => {},
+  };
+}
+async function connect() {
+  if (ATTRACT || typeof MP === "undefined") return localRoom();
+  try {
+    const mp = await Promise.race([MP.join({ ...MP_CONNECT }), new Promise((_, no) => setTimeout(() => no(new Error("timed out")), 10000))]);
+    window.mp = mp; // the builder calls window.mp.leave() when the page closes
+    return mp;
+  } catch (e) {
+    console.warn("Playing offline:", e && e.message);
+    return localRoom();
+  }
+}
+const parse = (v, fb) => { if (typeof v !== "string") return fb; try { return JSON.parse(v); } catch { return fb; } };
+const memo = new Map();
+/** A JSON field, parsed once per change (read-only: never mutate what this returns). */
+function cached(key, raw, fb) { const m = memo.get(key); if (m && m.raw === raw) return m.v; const v = parse(raw, fb); memo.set(key, { raw, v }); return v; }
+let net = null, S = { entities: { players: {} }, shared: {} };
+const seenHb = new Map();
+/** Players whose heartbeat moved in the last 3s (plus us), sorted by sessionId. */
+function livePlayers() {
+  const now = performance.now(), out = [];
+  for (const [id, p] of Object.entries(S.entities.players || {})) {
+    const s = seenHb.get(id);
+    if (!s || s.hb !== p.hb) seenHb.set(id, { hb: p.hb, at: now });
+    if (id === net.sessionId || now - seenHb.get(id).at < 3000) out.push(id);
+  }
+  return out.sort();
+}
+/** Am I the host? Never in the first 0.7s after this tab wakes from a freeze (fresh state arrives first). */
+const isHost = () => performance.now() >= host.quietUntil && livePlayers()[0] === net.sessionId;
+const humans = () => livePlayers().filter((id) => !(ATTRACT && id === net.sessionId)); // in the preview you only watch
+
+// ── COURT ───────────────────────────────────────────────────────────────────────────
+// Metres. x runs along the court (-HL..HL), z across it (-HW..HW), y is up. Seats 0 and 1 are the
+// Sunburners (team 0, shooting at +x); seats 2 and 3 the Riptides (team 1, shooting at -x).
+const HL = CONFIG.courtL / 2, HW = CONFIG.courtW / 2, BALL_G = 9.8;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, u) => a + (b - a) * u;
+const r2 = (v) => Math.round(v * 100) / 100;
+const teamOfSeat = (s) => (s < 2 ? 0 : 1);
+const attackDir = (team) => (team === 0 ? 1 : -1);          // which way a team shoots
+const rimXOf = (team) => attackDir(team) * CONFIG.rimX;       // the rim a team shoots at
+const rimDist = (x, z, team) => Math.hypot(x - rimXOf(team), z);
+const isBot = (id) => /^b\d$/.test(id);
+const botId = (seat) => "b" + (seat + 1);
+const SPOTS = [[-1.2, 0.3], [-5.5, 4.2], [1.2, -0.3], [5.5, -4.2]]; // where seats 0..3 stand when a quarter starts
+const peakT = () => CONFIG.jumpV / CONFIG.gravity;            // seconds from take-off to the top of a jump
+/** How good a release is, 1 = perfect, from how many seconds off the top of the jump it was. */
+function releaseQuality(off) { off = Math.abs(off); return off <= CONFIG.perfectWin ? 1 : clamp(1 - (off - CONFIG.perfectWin) / (CONFIG.releaseWin - CONFIG.perfectWin), 0, 1); }
+/** A small seeded random (mulberry32): the same seed gives the same numbers on every screen. */
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const newFlightId = () => 1 + Math.floor(Math.random() * 2e9);
+/** Keep a baller on the court (a little past the lines is fine). */
+function keepOnCourt(d) { d.x = clamp(d.x, -HL - 0.6, HL + 0.6); d.z = clamp(d.z, -HW - 0.6, HW + 0.6); }
+/** Push baller d away from baller o if they overlap. */
+function pushApart(d, o) {
+  const dx = d.x - o.x, dz = d.z - o.z, dist = Math.hypot(dx, dz), min = CONFIG.bodyR * 2;
+  if (dist >= min || dist < 0.001) return;
+  d.x += (dx / dist) * (min - dist) * 0.5; d.z += (dz / dist) * (min - dist) * 0.5;
+}
+
+// The ball's flights. Each is decided by the host when it starts and written once into `ball.f`;
+// every screen then draws it from the same numbers and its own clock since the flight began.
+/** A jump shot from (x0, y0, z0): an arc into the rim's middle (made) or onto its edge (a miss). */
+function shotFlight(n, by, team, x0, y0, z0, made, pts, rng) {
+  const rx = rimXOf(team);
+  let tx = rx, tz = 0, ty = CONFIG.rimY + 0.05;
+  if (!made) { // clang: somewhere on the rim, mostly the side facing the shooter
+    const ang = Math.atan2(z0, x0 - rx) + (rng() - 0.5) * 2.4;
+    tx = rx + Math.cos(ang) * (CONFIG.rimR + 0.1); tz = Math.sin(ang) * (CONFIG.rimR + 0.1); ty = CONFIG.rimY + 0.12;
+  }
+  const T = 0.6 + Math.hypot(tx - x0, tz - z0) * 0.06;
+  return { n, k: "shot", by, team, made: made ? 1 : 0, pts, t0: Date.now(), T: r2(T), x0: r2(x0), y0: r2(y0), z0: r2(z0),
+    vx: r2((tx - x0) / T), vy: r2((ty - y0 + 0.5 * BALL_G * T * T) / T), vz: r2((tz - z0) / T) };
+}
+const DUNK_HANG = 0.32; // seconds a dunker hangs on the rim after the slam
+/** Where a dunk ends: the dunker's hands on the rim. */
+function dunkEnd(f) { return { x: rimXOf(f.team) - attackDir(f.team) * 0.3, y: CONFIG.rimY + 0.28, z: f.z0 * 0.06 }; }
+/** The ball, in the dunker's hands, e seconds into a dunk: a fast take-off, a long hang, then down. */
+function dunkHand(f, e) {
+  const u = clamp(e / f.T, 0, 1), E = dunkEnd(f), y0 = 1.5, c = 2 * CONFIG.dunkPeak - (y0 + E.y) / 2, w = 1 - Math.pow(1 - u, 1.7);
+  return { x: lerp(f.x0, E.x, w), y: (1 - u) * (1 - u) * y0 + 2 * u * (1 - u) * c + u * u * E.y, z: lerp(f.z0, E.z, w) };
+}
+/** The dunker's feet e seconds into a dunk (null once it lets go of the rim and drops). */
+function dunkBody(f, e) {
+  if (e > f.T + DUNK_HANG) return null;
+  const h = e >= f.T ? dunkEnd(f) : dunkHand(f, e);
+  return { x: h.x - attackDir(f.team) * 0.2, z: h.z, j: Math.max(0, h.y - 2.4) };
+}
+/** Where the ball is e seconds into flight f. Passes home in on the catcher's hands. */
+function flightPos(f, e) {
+  if (f.k === "dunk") return dunkHand(f, e);
+  if (f.k === "pass") {
+    const u = clamp(e / f.T, 0, 1), d = drawnBody(f.to), h = d ? handPos(f.to, d, performance.now(), true) : { x: f.x0, y: 1.3, z: f.z0 };
+    return { x: lerp(f.x0, h.x, u), y: lerp(f.y0, h.y, u) + Math.sin(Math.PI * u) * f.arc, z: lerp(f.z0, h.z, u) };
+  }
+  const t = Math.min(e, f.T);
+  return { x: f.x0 + f.vx * t, y: f.y0 + f.vy * t - 0.5 * BALL_G * t * t, z: f.z0 + f.vz * t };
+}
+/** Seconds since flight f began on this screen. A flight first seen in a write started a little earlier
+ *  (its t0 is on the host's clock, so only trust up to 0.25s of it). */
+const flightStart = new Map();
+function flightElapsed(f) {
+  if (!flightStart.has(f.n)) { flightStart.set(f.n, performance.now() - clamp(Date.now() - f.t0, 0, 250)); if (flightStart.size > 60) flightStart.delete(flightStart.keys().next().value); }
+  return (performance.now() - flightStart.get(f.n)) / 1000;
+}
+/** A loose ball: gravity, floor bounces, the walls round the court. Returns true on a hard bounce. */
+function stepLoose(b, dt) {
+  let bounced = false;
+  for (let i = 0; i < 3; i++) {
+    const h = dt / 3;
+    b.vy -= BALL_G * h; b.x += b.vx * h; b.y += b.vy * h; b.z += b.vz * h;
+    if (b.y < CONFIG.ballR) { b.y = CONFIG.ballR; if (b.vy < -1.2) { b.vy = -b.vy * 0.62; bounced = true; } else b.vy = 0; b.vx *= 0.9; b.vz *= 0.9; }
+    if (Math.abs(b.x) > HL + 1.5) { b.x = Math.sign(b.x) * (HL + 1.5); b.vx = -b.vx * 0.5; }
+    if (Math.abs(b.z) > HW + 1.5) { b.z = Math.sign(b.z) * (HW + 1.5); b.vz = -b.vz * 0.5; }
+  }
+  if (b.y <= CONFIG.ballR + 0.01) { const f = Math.exp(-1.4 * dt); b.vx *= f; b.vz *= f; }
+  return bounced;
+}
+
+// ── ARENA ───────────────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+const cv = renderer.domElement;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color("#0d0f1e");
+scene.fog = new THREE.Fog("#0d0f1e", 34, 80);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+scene.add(new THREE.HemisphereLight("#e8eeff", "#40301e", 1.2));
+const sun = new THREE.DirectionalLight("#fff4e2", 1.9);
+sun.position.set(3, 20, 9); sun.castShadow = true; sun.shadow.mapSize.set(2048, 1024);
+Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 11, bottom: -11, near: 1, far: 50 }); scene.add(sun);
+function canvasTex(w, h, paint) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; paint(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+// The floor: wooden court, painted keys in the color of the team defending them, 3-point arcs, a logo.
+const FLOOR_L = 34, FLOOR_W = 21, PX = 40;
+const floorTex = canvasTex(FLOOR_L * PX, FLOOR_W * PX, (c, w, h) => {
+  const X = (x) => (x + FLOOR_L / 2) * PX, Z = (z) => (z + FLOOR_W / 2) * PX, M = (m) => m * PX;
+  c.fillStyle = "#1c2140"; c.fillRect(0, 0, w, h);
+  const tones = ["#d9a066", "#d29a5f", "#dfa96f", "#cc9259"];
+  for (let i = 0, y = Z(-HW); y < Z(HW); i++, y += 10) {
+    c.fillStyle = tones[i % 4]; c.fillRect(X(-HL), y, M(CONFIG.courtL), 10);
+    c.fillStyle = "#00000016"; c.fillRect(X(-HL) + ((i * 157) % M(CONFIG.courtL)), y, 2, 10); c.fillRect(X(-HL), y, M(CONFIG.courtL), 1);
+  }
+  c.strokeStyle = "#ffffffe6"; c.lineWidth = 5;
+  for (const team of [0, 1]) {
+    const s = -attackDir(team), kx = s > 0 ? X(HL - 5.8) : X(-HL);
+    c.fillStyle = TEAMS[team].color + "b0"; c.fillRect(kx, Z(-2.45), M(5.8), M(4.9)); c.strokeRect(kx, Z(-2.45), M(5.8), M(4.9));
+    c.beginPath(); c.arc(X(s * (HL - 5.8)), Z(0), M(1.8), 0, Math.PI * 2); c.stroke();
+    c.save(); c.beginPath(); c.rect(X(-HL), Z(-HW), M(CONFIG.courtL), M(CONFIG.courtW)); c.clip();
+    c.beginPath(); c.arc(X(s * CONFIG.rimX), Z(0), M(CONFIG.threeR), 0, Math.PI * 2); c.stroke(); c.restore();
+    c.save(); c.translate(X(s * (HL + 1.6)), Z(0)); c.rotate(s * Math.PI / 2); c.font = "900 46px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillStyle = TEAMS[team].color; c.fillText(TEAMS[team].name.toUpperCase(), 0, 0); c.restore();
+  }
+  c.beginPath(); c.moveTo(X(0), Z(-HW)); c.lineTo(X(0), Z(HW)); c.stroke();
+  c.fillStyle = "#1c2140cc"; c.beginPath(); c.arc(X(0), Z(0), M(1.8), 0, Math.PI * 2); c.fill(); c.stroke();
+  c.font = "italic 900 34px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillStyle = "#ffd23f"; c.fillText("SLAM", X(0), Z(-0.38)); c.fillStyle = "#ff7a1a"; c.fillText("JAM", X(0), Z(0.42));
+  c.lineWidth = 7; c.strokeRect(X(-HL), Z(-HW), M(CONFIG.courtL), M(CONFIG.courtW));
+});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(FLOOR_L, FLOOR_W), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.42 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const outer = new THREE.Mesh(new THREE.PlaneGeometry(120, 80), new THREE.MeshStandardMaterial({ color: "#14182f", roughness: 0.9 }));
+outer.rotation.x = -Math.PI / 2; outer.position.y = -0.01; scene.add(outer);
+
+const MAT = {
+  board: new THREE.MeshStandardMaterial({ map: canvasTex(256, 150, (c, w, h) => {
+    c.fillStyle = "#e8f3ff55"; c.fillRect(0, 0, w, h); c.strokeStyle = "#ffffff"; c.lineWidth = 12; c.strokeRect(6, 6, w - 12, h - 12);
+    c.strokeStyle = "#ff5a1f"; c.lineWidth = 8; c.strokeRect(w / 2 - 42, h - 72, 84, 58);
+  }), transparent: true, roughness: 0.15 }),
+  rim: new THREE.MeshStandardMaterial({ color: "#ff5a1f", roughness: 0.35, metalness: 0.4 }),
+  pole: new THREE.MeshStandardMaterial({ color: "#2b3352", roughness: 0.6 }),
+  net: new THREE.MeshBasicMaterial({ map: canvasTex(128, 64, (c, w, h) => {
+    c.strokeStyle = "#ffffff"; c.lineWidth = 3;
+    for (let i = -8; i < 16; i++) { c.beginPath(); c.moveTo(i * 16, 0); c.lineTo(i * 16 + 64, h); c.stroke(); c.beginPath(); c.moveTo(i * 16 + 64, 0); c.lineTo(i * 16, h); c.stroke(); }
+  }), transparent: true, side: THREE.DoubleSide, depthWrite: false }),
+  riser: new THREE.MeshStandardMaterial({ color: "#232848", roughness: 0.9 }),
+};
+/** The two hoops: stanchion, padded base, arm, glass board, rim and net. side +1 is the rim the Sunburners shoot at. */
+const HOOPS = [-1, 1].map((side) => {
+  const C = CONFIG, rx = side * C.rimX, boardX = side * (C.rimX + C.rimR + 0.17), poleX = side * (HL + 1.4), defender = side > 0 ? 1 : 0;
+  const padMat = new THREE.MeshStandardMaterial({ color: TEAMS[defender].color, roughness: 0.7 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.0, 1.6), padMat); base.position.set(poleX + side * 0.3, 0.5, 0); base.castShadow = true;
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, C.rimY + 0.9, 10), MAT.pole); pole.position.set(poleX, (C.rimY + 0.9) / 2, 0); pole.castShadow = true;
+  const armLen = Math.abs(poleX - boardX), arm = new THREE.Mesh(new THREE.BoxGeometry(armLen, 0.16, 0.16), MAT.pole); arm.position.set((poleX + boardX) / 2, C.rimY + 0.75, 0);
+  const board = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.05, 1.8), MAT.board); board.position.set(boardX + side * 0.025, C.rimY + 0.38, 0); board.castShadow = true;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(C.rimR, 0.022, 8, 32), MAT.rim); rim.rotation.x = Math.PI / 2; rim.position.set(rx, C.rimY, 0);
+  const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.12), MAT.rim); bracket.position.set(rx + side * (C.rimR + 0.08), C.rimY, 0);
+  const net = new THREE.Mesh(new THREE.CylinderGeometry(C.rimR, C.rimR * 0.6, 0.45, 16, 1, true), MAT.net); net.geometry.translate(0, -0.225, 0); net.position.set(rx, C.rimY, 0);
+  scene.add(base, pole, arm, board, rim, bracket, net);
+  return { side, rx, rim, net, wob: 0 };
+});
+const hoopOf = (team) => HOOPS[team === 0 ? 1 : 0]; // the hoop a team shoots at
+
+// The crowd: risers along the far side and both ends, fans that jump when something big happens.
+const fans = [];
+function addRow(x0, z0, dx, dz, n, y) { for (let i = 0; i < n; i++) if (Math.random() > 0.12) fans.push({ x: x0 + dx * i, y, z: z0 + dz * i, ph: Math.random() * 6.3, sp: 7 + Math.random() * 5 }); }
+for (let r = 0; r < 7; r++) { // the far side
+  const z = -HW - 2.3 - r * 0.9, y = 0.35 + r * 0.55, riser = new THREE.Mesh(new THREE.BoxGeometry(36, y, 0.9), MAT.riser);
+  riser.position.set(0, y / 2, z); scene.add(riser); addRow(-17.5, z, 0.6, 0, 59, y);
+}
+for (const side of [-1, 1]) for (let r = 0; r < 6; r++) { // the two ends
+  const x = side * (HL + 3.2 + r * 0.9), y = 0.35 + r * 0.55, riser = new THREE.Mesh(new THREE.BoxGeometry(0.9, y, 18 + r * 1.8), MAT.riser);
+  riser.position.set(x, y / 2, -1 - r * 0.9); scene.add(riser); addRow(x, -10 - r * 0.9, 0, 0.62, 29 + r * 3, y);
+}
+const fanBody = new THREE.InstancedMesh(new THREE.BoxGeometry(0.44, 0.62, 0.36), new THREE.MeshStandardMaterial({ roughness: 0.8 }), fans.length);
+const fanHead = new THREE.InstancedMesh(new THREE.BoxGeometry(0.26, 0.26, 0.26), new THREE.MeshStandardMaterial({ roughness: 0.8 }), fans.length);
+const SHIRTS = [TEAMS[0].color, TEAMS[1].color, TEAMS[0].color, TEAMS[1].color, "#ffd23f", "#ffffff", "#7a55ff", "#2b2f4a", "#ff5c8a"];
+fans.forEach((f, i) => { fanBody.setColorAt(i, new THREE.Color(SHIRTS[i % SHIRTS.length]).offsetHSL(0, 0, (Math.random() - 0.5) * 0.15)); fanHead.setColorAt(i, new THREE.Color(SKINS[(i * 7) % SKINS.length])); });
+fanBody.instanceMatrix.setUsage(THREE.DynamicDrawUsage); fanHead.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+scene.add(fanBody, fanHead);
+const mtx = new THREE.Matrix4();
+let hype = 0.3; // how hard the crowd is jumping (big plays push it up)
+function tickCrowd(dt, now) {
+  hype = Math.max(0.12, hype - dt * 0.35);
+  fans.forEach((f, i) => {
+    const up = Math.max(0, Math.sin((now / 1000) * f.sp + f.ph)) * (0.03 + hype * 0.32);
+    mtx.makeTranslation(f.x, f.y + 0.31 + up, f.z); fanBody.setMatrixAt(i, mtx);
+    mtx.makeTranslation(f.x, f.y + 0.76 + up, f.z); fanHead.setMatrixAt(i, mtx);
+  });
+  fanBody.instanceMatrix.needsUpdate = true; fanHead.instanceMatrix.needsUpdate = true;
+}
+const banner = new THREE.Mesh(new THREE.PlaneGeometry(36, 0.9), new THREE.MeshBasicMaterial({ map: canvasTex(2048, 52, (c, w, h) => {
+  c.fillStyle = "#0b0e20"; c.fillRect(0, 0, w, h); c.fillStyle = "#ff6a1a"; c.fillRect(0, 0, w, 5); c.fillStyle = "#1e9bff"; c.fillRect(0, h - 5, w, 5);
+  c.font = "italic 900 30px system-ui, sans-serif"; c.textBaseline = "middle";
+  for (let x = 10, k = 0; x < w; k++) { const t = ["SLAM JAM", "SUNBURNERS", "RIPTIDES", "TURBO!"][k % 4]; c.fillStyle = ["#ffd23f", "#ff7a1a", "#3fb0ff", "#ffffff"][k % 4]; c.fillText(t, x, h / 2 + 1); x += c.measureText(t).width + 70; }
+}) }));
+banner.position.set(0, 0.45, -HW - 1.75); scene.add(banner);
+
+// The ballers: big heads, team jerseys, a headband, shoes and a ring in each player's own color.
+const mats = new Map();
+const matOf = (color) => mats.get(color) || mats.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.65 })).get(color);
+function canvasSprite(w, h) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.renderOrder = 5;
+  return { s, c, ctx: c.getContext("2d"), t };
+}
+function makeBaller(team, color, skin, label, mine) {
+  const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
+  const jersey = matOf(TEAMS[team].color), shorts = matOf(TEAMS[team].dark), own = matOf(color), skinM = matOf(skin);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 4, 10), jersey); torso.position.y = 1.32; torso.scale.z = 0.72;
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.3, 0.36), shorts); hips.position.y = 0.96;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 18, 14), skinM); head.position.y = 1.98;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.285, 0.285, 0.08, 18, 1, true), own); band.position.y = 2.06;
+  const eyes = [-0.1, 0.1].map((x) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), matOf("#111")); e.position.set(x, 1.99, 0.25); return e; });
+  const limb = (x, y, len, r, m, shoe) => {
+    const pivot = new THREE.Group(); pivot.position.set(x, y, 0);
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, len, 8), m); mesh.position.y = -len / 2; mesh.castShadow = true; pivot.add(mesh);
+    if (shoe) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.11, 0.3), own); s.position.set(0, -len, 0.05); pivot.add(s); }
+    rig.add(pivot); return pivot;
+  };
+  const legs = [limb(-0.16, 0.9, 0.78, 0.085, skinM, true), limb(0.16, 0.9, 0.78, 0.085, skinM, true)];
+  const arms = [limb(-0.42, 1.6, 0.68, 0.07, skinM), limb(0.42, 1.6, 0.68, 0.07, skinM)];
+  for (const m of [torso, hips, head]) m.castShadow = true;
+  rig.add(torso, hips, head, band, ...eyes);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, mine ? 0.66 : 0.6, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
+  if (label) {
+    const tag = canvasSprite(256, 64), c = tag.ctx;
+    c.font = "800 34px system-ui, sans-serif"; c.textAlign = "center"; c.lineWidth = 7; c.strokeStyle = "#000b"; c.strokeText(label, 128, 44);
+    c.fillStyle = mine ? "#ffd23f" : "#fff"; c.fillText(label, 128, 44); tag.t.needsUpdate = true;
+    tag.s.position.y = 2.75; tag.s.scale.set(1.5, 0.375, 1); g.add(tag.s);
+  }
+  g.userData = { rig, legs, arms, ring, run: 0, fall: 0 };
+  scene.add(g); return g;
+}
+
+// The ball, and its on-fire look.
+const ballTex = (base, line) => canvasTex(128, 64, (c, w, h) => {
+  c.fillStyle = base; c.fillRect(0, 0, w, h); c.strokeStyle = line; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(0, h / 2); c.lineTo(w, h / 2); c.stroke();
+  for (const x of [w / 4, (3 * w) / 4]) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+  c.beginPath(); c.ellipse(w / 2, h / 2, 18, h / 2, 0, 0, Math.PI * 2); c.stroke();
+});
+const BALL_MAT = new THREE.MeshStandardMaterial({ map: ballTex("#e8742a", "#1a0d05"), roughness: 0.6 });
+const FIRE_MAT = new THREE.MeshStandardMaterial({ map: ballTex("#ff8a1a", "#7a1500"), roughness: 0.4, emissive: "#ff3c00", emissiveIntensity: 0.9 });
+const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(CONFIG.ballR, 20, 14), BALL_MAT);
+ballMesh.castShadow = true; scene.add(ballMesh);
+
+// Sparks, confetti and flames: one pool of small cubes, reused.
+const PCOUNT = 420, partMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: "#fff" }), PCOUNT);
+partMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); partMesh.frustumCulled = false; scene.add(partMesh);
+const parts = Array.from({ length: PCOUNT }, () => ({ life: 0, max: 1, x: 0, y: -9, z: 0, vx: 0, vy: 0, vz: 0, g: 9, s: 1 }));
+for (let i = 0; i < PCOUNT; i++) partMesh.setColorAt(i, new THREE.Color("#fff"));
+let nextPart = 0;
+const tmpColor = new THREE.Color();
+/** Throw n particles from (x, y, z): speed sideways, `up` upward, gravity g (negative rises, like flames). */
+function emit(x, y, z, color, n, speed, up = 2, g = 9, life = 1, size = 1) {
+  for (let k = 0; k < n; k++) {
+    const p = parts[nextPart], i = nextPart; nextPart = (nextPart + 1) % PCOUNT;
+    const a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random());
+    Object.assign(p, { life: life * (0.6 + Math.random() * 0.6), x, y, z, vx: Math.cos(a) * s, vy: up * (0.4 + Math.random()), vz: Math.sin(a) * s, g, s: size });
+    p.max = p.life;
+    partMesh.setColorAt(i, tmpColor.set(Array.isArray(color) ? color[k % color.length] : color));
+  }
+  partMesh.instanceColor.needsUpdate = true;
+}
+const q0 = new THREE.Quaternion(), e0 = new THREE.Euler(), v0 = new THREE.Vector3(), s0 = new THREE.Vector3();
+function tickParts(dt) {
+  parts.forEach((p, i) => {
+    if (p.life > 0) { p.life -= dt; p.vy -= p.g * dt; p.x += p.vx * dt; p.y = Math.max(0.04, p.y + p.vy * dt); p.z += p.vz * dt; p.vx *= 0.97; p.vz *= 0.97; }
+    const s = p.life > 0 ? Math.min(1, (p.life / p.max) * 2) * p.s : 0;
+    mtx.compose(v0.set(p.x, p.y, p.z), q0.setFromEuler(e0.set(p.life * 9, p.life * 7, 0)), s0.set(s, s, s));
+    partMesh.setMatrixAt(i, mtx);
+  });
+  partMesh.instanceMatrix.needsUpdate = true;
+}
+// "+3" numbers that float up from a rim
+const pops = [];
+function popText(text, x, y, z, color) {
+  const p = canvasSprite(256, 96), c = p.ctx;
+  c.font = "900 66px system-ui, sans-serif"; c.textAlign = "center"; c.lineWidth = 9; c.strokeStyle = "#000b"; c.strokeText(text, 128, 72); c.fillStyle = color; c.fillText(text, 128, 72);
+  p.t.needsUpdate = true; p.s.position.set(x, y, z); p.s.scale.set(1.6, 0.6, 1); scene.add(p.s);
+  pops.push({ p, life: 1.2 });
+}
+function tickPops(dt) {
+  for (let i = pops.length - 1; i >= 0; i--) {
+    const o = pops[i]; o.life -= dt; o.p.s.position.y += dt * 1.1; o.p.s.material.opacity = Math.min(1, o.life * 2);
+    if (o.life <= 0) { scene.remove(o.p.s); o.p.t.dispose(); o.p.s.material.dispose(); pops.splice(i, 1); }
+  }
+}
+
+// Sound, made on the fly with WebAudio (no files), started by the first key or touch.
+let audio = null, noise = null;
+function unlockAudio() {
+  if (audio || ATTRACT) return;
+  try { audio = new AudioContext(); noise = audio.createBuffer(1, audio.sampleRate, audio.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch {}
+}
+function tone(type, f0, f1, len, vol, at = 0) {
+  const t = audio.currentTime + at, o = audio.createOscillator(), gain = audio.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + len);
+  gain.gain.setValueAtTime(vol, t); gain.gain.exponentialRampToValueAtTime(0.001, t + len);
+  o.connect(gain).connect(audio.destination); o.start(t); o.stop(t + len + 0.02);
+}
+function hiss(len, vol, freq) {
+  const src = audio.createBufferSource(), f = audio.createBiquadFilter(), gain = audio.createGain(), t = audio.currentTime;
+  src.buffer = noise; f.type = "bandpass"; f.frequency.value = freq; gain.gain.setValueAtTime(vol, t); gain.gain.exponentialRampToValueAtTime(0.001, t + len);
+  src.connect(f).connect(gain).connect(audio.destination); src.start(t); src.stop(t + len);
+}
+function sfx(kind) {
+  if (!audio) return;
+  if (kind === "dribble") tone("sine", 140, 70, 0.07, 0.18);
+  if (kind === "swish") { hiss(0.25, 0.25, 3200); tone("sine", 900, 1400, 0.15, 0.05); }
+  if (kind === "rim") { tone("square", 420, 380, 0.12, 0.07); tone("triangle", 160, 120, 0.1, 0.15); }
+  if (kind === "dunk") { tone("sawtooth", 90, 40, 0.4, 0.35); hiss(0.4, 0.4, 600); tone("square", 300, 250, 0.2, 0.08, 0.05); }
+  if (kind === "crowd") hiss(1.3, 0.22, 900);
+  if (kind === "steal") { tone("triangle", 700, 1400, 0.12, 0.15); }
+  if (kind === "block") { tone("square", 200, 90, 0.18, 0.18); hiss(0.15, 0.3, 1500); }
+  if (kind === "thud") { tone("sine", 120, 50, 0.25, 0.35); hiss(0.2, 0.2, 400); }
+  if (kind === "jump") tone("sine", 300, 520, 0.12, 0.05);
+  if (kind === "buzzer") { tone("sawtooth", 180, 175, 0.9, 0.12); tone("square", 182, 176, 0.9, 0.06); }
+  if (kind === "whistle") { tone("sine", 2300, 2250, 0.18, 0.1); tone("sine", 2300, 2200, 0.3, 0.1, 0.22); }
+}
+
+// ── GAME (HOST) ─────────────────────────────────────────────────────────────────────
+const host = { last: null, wasHost: false, bots: new Map(), lastBall: 0, lastBody: "", tried: new Set(), quietUntil: 0, down: new Map() }; // down: who the host just knocked over, until when
+/** The ball: the host's real one; on other screens what the latest write says, run on between writes. */
+let ball = { st: "dead", own: "", x: 0, y: CONFIG.ballR, z: 0, vx: 0, vy: 0, vz: 0, f: null, at: 0, s: 0 };
+const pred = { lastS: -1 }; // the last ball write this screen took in (not the host)
+const seatOf = (g, id) => (g && id ? g.seats.indexOf(id) : -1);
+const teamOf = (g, id) => { const s = seatOf(g, id); return s < 0 ? -1 : teamOfSeat(s); };
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+/** The game as state has it, or the host's own newer write that hasn't come back yet. `v` only goes up. */
+function game() {
+  const g = cached("game", S.shared.game, null);
+  return host.last && isHost() && (!g || host.last.v > g.v) ? host.last : g;
+}
+function writeGame(g) {
+  const shared = cached("game", S.shared.game, null);
+  g = { ...g, v: Math.max(game()?.v ?? 0, shared?.v ?? 0) + 1 }; // never below what is in state
+  host.last = g; net.setShared("game", JSON.stringify(g)); return g;
+}
+function writeBall(onlyIfMoved) {
+  const b = [...host.bots.values()].map((q) => [q.id, r2(q.x), r2(q.z), r2(q.vx), r2(q.vz), r2(q.j), q.a]);
+  const body = JSON.stringify({ st: ball.st, own: ball.own, x: r2(ball.x), y: r2(ball.y), z: r2(ball.z), vx: r2(ball.vx), vy: r2(ball.vy), vz: r2(ball.vz), f: ball.f, at: ball.at, b });
+  host.lastBall = performance.now();
+  if (onlyIfMoved && body === host.lastBody) return; // nothing moved: save the message
+  host.lastBody = body; ball.s++;
+  net.setShared("ball", body.slice(0, -1) + `,"s":${ball.s}}`);
+}
+const newBot = (id, x, z, vx = 0, vz = 0, j = 0) => ({ id, x, z, vx, vz, j, vj: 0, a: 0, turbo: CONFIG.turboMax, knockUntil: 0, thinkAt: 0, tx: x, tz: z,
+  wantTurbo: false, swipeAt: 0, swipeShow: 0, shooting: false, jumpAt: 0, releaseAt: 0, blockAt: 0, ex: 0, ez: 0, laneZ: 0 });
+/** Become host: take over the game, the ball and the bots exactly as state has them. */
+function adopt() {
+  host.wasHost = true; host.last = null; host.bots.clear(); host.tried.clear();
+  const s = parse(S.shared.ball, null);
+  if (!s) return;
+  const ran = s.s === pred.lastS && (ball.st === "loose" || ball.st === "dead"); // our screen ran this loose ball on from that write: keep it
+  Object.assign(ball, { st: s.st, own: s.own || "", f: s.f || null, at: s.at || 0, s: s.s || 0 });
+  if (!ran) Object.assign(ball, { x: s.x, y: s.y, z: s.z, vx: s.vx, vy: s.vy, vz: s.vz });
+  for (const [id, x, z, vx, vz, j] of s.b || []) host.bots.set(id, newBot(id, x, z, vx, vz, j));
+}
+/** host.bots holds exactly the bots in the seats. */
+function syncBots(g) {
+  g.seats.forEach((id, s) => { if (isBot(id) && !host.bots.has(id)) host.bots.set(id, newBot(id, SPOTS[s][0], SPOTS[s][1])); });
+  for (const id of [...host.bots.keys()]) if (!g.seats.includes(id)) host.bots.delete(id);
+}
+/** Everyone still here keeps their seat; someone who left becomes a bot; a newcomer takes a bot's seat on the team with fewer people. */
+function arrangeSeats(seats, people) {
+  const s = seats.map((id, i) => (isBot(id) || people.includes(id) ? id : botId(i)));
+  for (const id of people) {
+    if (s.includes(id)) continue;
+    const onTeam = (t) => s.filter((x, i) => teamOfSeat(i) === t && !isBot(x)).length;
+    const i = (onTeam(0) <= onTeam(1) ? [0, 2, 1, 3] : [2, 0, 3, 1]).find((k) => isBot(s[k]));
+    if (i === undefined) break; // four people already: the rest watch
+    s[i] = id;
+  }
+  return s;
+}
+function newGame(id) {
+  const t = Date.now(), liveAt = t + CONFIG.readyMs + 800;
+  return { id, phase: "play", seats: arrangeSeats([0, 1, 2, 3].map(botId), humans()), score: [0, 0], q: 1, ko: 1, liveAt,
+    qEnds: liveAt + CONFIG.quarterMs, shotEnds: liveAt + CONFIG.shotClockMs, phaseEnds: 0, poss: 0, pts: {}, streak: ATTRACT ? { b1: 2 } : {}, fire: ATTRACT ? ["b1"] : [], call: null, win: -1, endsAt: 0 }; // the preview starts with someone on fire
+}
+/** A quarter starts: bots back on their spots (people walk back when they see `ko` change), the ball to the guard. */
+function tipOff(g) {
+  for (const b of host.bots.values()) { const s = seatOf(g, b.id); if (s >= 0) Object.assign(b, { x: SPOTS[s][0], z: SPOTS[s][1], vx: 0, vz: 0, j: 0, vj: 0, shooting: false, knockUntil: 0 }); }
+  Object.assign(ball, { st: "held", own: g.seats[g.poss === 0 ? 0 : 2], f: null, at: 0, x: 0, y: 1, z: 0, vx: 0, vy: 0, vz: 0 });
+  writeBall();
+}
+/** `id` has the ball now. A change of team, or a rebound after a shot, restarts the shot clock. */
+function give(g, id) {
+  const team = teamOf(g, id), fresh = team !== g.poss || ball.at;
+  Object.assign(ball, { st: "held", own: id, f: null, at: 0 });
+  writeBall();
+  return fresh ? writeGame({ ...g, poss: team, shotEnds: Date.now() + CONFIG.shotClockMs }) : g;
+}
+function loose(x, y, z, vx, vy, vz) { Object.assign(ball, { st: "loose", own: "", x, y, z, vx, vy, vz }); writeBall(); }
+function callout(g, k, text, sub, team) { return writeGame({ ...g, call: { n: (g.call?.n || 0) + 1, k, text, sub, team } }); }
+/** Where the ball is on the court right now (for "nearest player" decisions). */
+function ballSpot() {
+  if (ball.st === "held") { const d = bodyOf(ball.own); if (d) return { x: d.x, z: d.z }; }
+  if (ball.st === "flight" && ball.f) return flightPos(ball.f, flightElapsed(ball.f));
+  return { x: ball.x, z: ball.z };
+}
+function nearestOf(g, team, p) {
+  let best = "", bd = 1e9;
+  g.seats.forEach((id, s) => { const d = teamOfSeat(s) === team && bodyOf(id); if (d && Math.hypot(d.x - p.x, d.z - p.z) < bd) { bd = Math.hypot(d.x - p.x, d.z - p.z); best = id; } });
+  return best;
+}
+
+// Intents: the host applies its own directly, everyone else's arrive with mp.send.
+/** "shoot" {x, z, j, q, dunk}: a jump shot let go at height j with release quality q, or a dunk. */
+function applyShoot(from, m) {
+  const g = game();
+  if (!g || g.phase !== "play" || Date.now() < g.liveAt || ball.st !== "held" || ball.own !== from || !m || m.g !== g.id) return;
+  const team = teamOf(g, from), d = bodyOf(from); if (team < 0 || !d) return;
+  let x = +m.x, z = +m.z;
+  if (!isFinite(x + z) || Math.hypot(x - d.x, z - d.z) > 3) { x = d.x; z = d.z; } // trust the shooter's own screen, within reason
+  if (m.dunk) { if (rimDist(x, z, team) < CONFIG.dunkRangeTurbo + 1) launchDunk(g, from, team, x, z); return; }
+  launchShot(g, from, team, x, z, clamp(+m.j || 0, 0, 2), clamp(+m.q || 0, 0, 1));
+}
+function launchShot(g, from, team, x, z, j, q) {
+  const n = newFlightId(), rng = mulberry32(n), dist = rimDist(x, z, team), hy = 2.45 + j;
+  const others = g.seats.filter((id, s) => teamOfSeat(s) !== team).map(bodyOf).filter((o) => o && o.a !== 1);
+  for (const o of others) if (o.j >= CONFIG.blockJ && Math.hypot(o.x - x, o.z - z) < CONFIG.blockR && rng() < CONFIG.blockChance) return blocked(g, o.id, team, x, hy, z);
+  const near = Math.min(99, ...others.map((o) => Math.hypot(o.x - x, o.z - z)));
+  let chance = Math.max(CONFIG.shotMin, CONFIG.shotBase - dist * CONFIG.shotPerM) * (0.45 + 0.55 * q);
+  if (near < CONFIG.contestR) chance *= CONFIG.contestX;
+  if ((g.fire || []).includes(from)) chance += CONFIG.fireBonus;
+  const made = rng() < Math.min(0.97, chance); // the seeded roll: the flight's number is the seed
+  ball.f = shotFlight(n, from, team, x + attackDir(team) * 0.15, hy, z, made, dist > CONFIG.threeR ? 3 : 2, rng);
+  Object.assign(ball, { st: "flight", own: "", at: 1 });
+  flightStart.set(n, performance.now()); writeBall();
+  return g;
+}
+function launchDunk(g, from, team, x, z) {
+  const n = newFlightId(), d = rimDist(x, z, team);
+  const T = lerp(CONFIG.dunkMs[0], CONFIG.dunkMs[1], clamp((d - 1) / (CONFIG.dunkRangeTurbo - 1), 0, 1)) / 1000;
+  const rim = { x: rimXOf(team), z: 0 }, contested = g.seats.some((id, s) => { const o = teamOfSeat(s) !== team && bodyOf(id); return o && o.a !== 1 && (Math.hypot(o.x - x, o.z - z) < 1.3 || Math.hypot(o.x - rim.x, o.z) < 1.6); });
+  const chance = CONFIG.dunkMake * (contested ? CONFIG.dunkContested : 1);
+  ball.f = { n, k: "dunk", by: from, team, made: mulberry32(n)() < chance ? 1 : 0, pts: 2, t0: Date.now(), T: r2(T), x0: r2(x), z0: r2(z) };
+  Object.assign(ball, { st: "flight", own: "", at: 1 });
+  flightStart.set(n, performance.now()); writeBall();
+  return g;
+}
+function blocked(g, by, team, x, y, z) {
+  ball.at = 1; ball.f = null;
+  loose(x, y + 0.3, z, -attackDir(team) * (3 + Math.random() * 3), 2 + Math.random() * 2, (Math.random() - 0.5) * 5);
+  return callout(g, "block", pick(CALLS.block), `${nameOf(by)} blocks it`, 1 - team);
+}
+/** "pass" {}: the holder passes to its teammate, or asks a bot teammate for the ball. */
+function applyPass(from, m) {
+  const g = game();
+  if (!g || g.phase !== "play" || Date.now() < g.liveAt || ball.st !== "held" || !m || m.g !== g.id) return;
+  const seat = seatOf(g, from); if (seat < 0) return;
+  const mate = g.seats[seat ^ 1];
+  if (ball.own === from) passBall(g, from, mate);
+  else if (ball.own === mate && isBot(mate)) passBall(g, mate, from);
+}
+function passBall(g, from, to) {
+  const a = bodyOf(from); if (!a || !bodyOf(to)) return g;
+  const team = teamOf(g, from), n = newFlightId(), rng = mulberry32(n), b0 = bodyOf(to);
+  for (const id of g.seats) { // a defender in the passing lane may pick it off
+    const o = teamOf(g, id) !== team && bodyOf(id); if (!o || o.a === 1) continue;
+    const dx = b0.x - a.x, dz = b0.z - a.z, u = clamp(((o.x - a.x) * dx + (o.z - a.z) * dz) / (dx * dx + dz * dz || 1), 0, 1);
+    if (u > 0.15 && u < 0.85 && Math.hypot(o.x - a.x - dx * u, o.z - a.z - dz * u) < 0.75 && rng() < CONFIG.intercept) { to = id; break; }
+  }
+  const b = bodyOf(to), dist = Math.hypot(b.x - a.x, b.z - a.z);
+  ball.f = { n, k: "pass", by: from, to, team, t0: Date.now(), T: r2(clamp(dist / CONFIG.passSpeed, 0.22, 0.9)), arc: r2(Math.min(0.9, dist / 10)), x0: r2(a.x), y0: 1.3, z0: r2(a.z) };
+  Object.assign(ball, { st: "flight", own: "" });
+  flightStart.set(n, performance.now()); writeBall();
+  return g;
+}
+/** "swipe" {turbo}: a defender next to the holder grabs at the ball (a steal) or, with turbo, shoves the holder over. */
+function applySwipe(from, m) {
+  const g = game();
+  if (!g || g.phase !== "play" || Date.now() < g.liveAt || ball.st !== "held" || !m || m.g !== g.id) return;
+  const team = teamOf(g, from), holder = ball.own, ht = teamOf(g, holder);
+  if (team < 0 || ht < 0 || ht === team) return;
+  const a = bodyOf(from), h = bodyOf(holder);
+  if (!a || !h || Math.hypot(a.x - h.x, a.z - h.z) > CONFIG.stealR + 0.5) return; // a little slack: positions arrive late
+  if (m.turbo) {
+    if (Math.random() >= CONFIG.shoveChance) return;
+    const dx = h.x - a.x, dz = h.z - a.z, d = Math.hypot(dx, dz) || 1;
+    knock(g, holder, dx / d, dz / d);
+    loose(h.x + dx / d * 0.5, 1.1, h.z + dz / d * 0.5, (dx / d) * 3.5, 2.5, (dz / d) * 3.5);
+    callout(g, "shove", pick(CALLS.shove), `${nameOf(from)} flattens ${nameOf(holder)}`, team);
+  } else if (Math.random() < CONFIG.stealChance) {
+    callout(give(g, from), "steal", pick(CALLS.steal), `${nameOf(from)} steals it`, team);
+  }
+}
+/** Knock a baller over: my own, a bot, or (a "knock" event) another player, who falls on its own screen. */
+function knock(g, id, dx, dz) {
+  host.down.set(id, performance.now() + CONFIG.knockMs);
+  if (id === net.sessionId) knockMe(dx, dz);
+  else if (isBot(id)) { const b = host.bots.get(id); if (b) Object.assign(b, { knockUntil: performance.now() + CONFIG.knockMs, vx: dx * 4, vz: dz * 4, shooting: false }); }
+  else net.send("knock", { id, dx: r2(dx), dz: r2(dz), g: g.id });
+  sfx("thud");
+}
+
+// The host's rules, every frame.
+/** A flight that has landed: a catch, a basket, or a ball off the rim. A defender in the air can swat a dunk on the way up. */
+function hostFlight(g, t) {
+  const f = ball.f; if (ball.st !== "flight" || !f) return g;
+  const e = flightElapsed(f);
+  if (f.k === "dunk" && e < f.T * 0.9) {
+    const h = dunkHand(f, e);
+    for (const id of g.seats) {
+      const o = teamOf(g, id) !== f.team && bodyOf(id), key = f.n + ":" + id;
+      if (!o || o.a === 1 || o.j < 0.3 || host.tried.has(key) || Math.hypot(o.x - h.x, o.z - h.z) > CONFIG.blockR || 2.5 + o.j < h.y - 0.4) continue;
+      host.tried.add(key);
+      if (Math.random() < CONFIG.blockChance * 0.6) return blocked(g, id, f.team, h.x, h.y, h.z);
+    }
+  }
+  if (e < f.T) return g;
+  if (f.k === "pass") {
+    if (seatOf(g, f.to) < 0 || !bodyOf(f.to)) { const p = flightPos(f, f.T); loose(p.x, p.y, p.z, 0, 0, 0); return g; }
+    const stolen = teamOf(g, f.to) !== f.team;
+    g = give(g, f.to);
+    return stolen ? callout(g, "steal", pick(CALLS.steal), `${nameOf(f.to)} picks it off`, 1 - f.team) : g;
+  }
+  if (f.made) return scored(g, f, t);
+  const rng = mulberry32(f.n + 1), p = flightPos(f, f.T), ox = p.x - rimXOf(f.team), oz = p.z, ol = Math.hypot(ox, oz) || 1, sp = 2 + rng() * 2.5;
+  loose(p.x, p.y, p.z, (ox / ol) * sp - attackDir(f.team) * 0.6, 2.5 + rng() * 2.5, (oz / ol) * sp + (rng() - 0.5) * 2);
+  return g;
+}
+/** A basket: points, streaks, who's on fire, the announcer, then the other team's ball. */
+function scored(g, f, t) {
+  const team = f.team, score = [...g.score], pts = { ...g.pts }, streak = {};
+  score[team] += f.pts;
+  const row = [...(pts[f.by] || [0, "", 0, 0])]; row[0] += f.pts; row[1] = nameOf(f.by); if (f.k === "dunk") row[2]++; if (f.pts === 3) row[3]++; pts[f.by] = row;
+  for (const [id, n] of Object.entries(g.streak || {})) if (teamOf(g, id) === team) streak[id] = n; // the other team's runs end here
+  streak[f.by] = (streak[f.by] || 0) + 1;
+  const doused = (g.fire || []).some((id) => teamOf(g, id) !== team), fire = (g.fire || []).filter((id) => teamOf(g, id) === team);
+  const k = f.k === "dunk" ? "dunk" : f.pts === 3 ? "three" : "two";
+  let text = pick(CALLS[k]), sub = `${nameOf(f.by)} +${f.pts}`;
+  if (streak[f.by] >= CONFIG.fireAfter && !fire.includes(f.by)) { fire.push(f.by); text = CALLS.fire; sub = `${nameOf(f.by)} catches fire!`; }
+  else if (streak[f.by] === CONFIG.fireAfter - 1 && !fire.includes(f.by)) sub += ` · ${CALLS.warm}`;
+  if (doused) sub += ` · ${CALLS.douse}`;
+  if (t >= g.qEnds) text = CALLS.buzzer;
+  Object.assign(ball, { st: "dead", own: "", x: rimXOf(team), y: CONFIG.rimY - 0.05, z: 0, vx: 0, vy: -2.2, vz: 0, at: 0 }); // drops through the net
+  writeBall();
+  return writeGame({ ...g, phase: "score", score, pts, streak, fire, poss: 1 - team, phaseEnds: t + CONFIG.scoreMs,
+    call: { n: (g.call?.n || 0) + 1, k, text, sub, team, pts: f.pts, by: f.by } });
+}
+function endQuarter(g, t) {
+  const p = ballSpot();
+  Object.assign(ball, { st: "dead", own: "", f: null, at: 0, x: p.x, y: Math.max(CONFIG.ballR, ball.st === "held" ? 1 : ball.y), z: p.z, vx: 0, vy: 0, vz: 0 });
+  writeBall();
+  const last = g.q >= CONFIG.quarters, line = `${TEAMS[0].short} ${g.score[0]} – ${g.score[1]} ${TEAMS[1].short}`;
+  if (last && g.score[0] !== g.score[1]) {
+    const win = g.score[0] > g.score[1] ? 0 : 1;
+    return writeGame({ ...g, phase: "over", win, endsAt: t + CONFIG.resultsMs, call: { n: (g.call?.n || 0) + 1, k: "end", text: "FINAL!", sub: line, team: win } });
+  }
+  return writeGame({ ...g, phase: "break", phaseEnds: t + CONFIG.breakMs, call: { n: (g.call?.n || 0) + 1, k: "end", text: last ? "OVERTIME!" : `END OF Q${g.q}`, sub: line, team: -1 } });
+}
+function nextQuarter(g, t) {
+  const q = g.q + 1, liveAt = t + CONFIG.readyMs;
+  g = writeGame({ ...g, phase: "play", q, ko: g.ko + 1, liveAt, qEnds: liveAt + (q > CONFIG.quarters ? CONFIG.overtimeMs : CONFIG.quarterMs), shotEnds: liveAt + CONFIG.shotClockMs, poss: q % 2 ? 0 : 1 });
+  tipOff(g);
+  return g;
+}
+/** After a basket: the team that was scored on takes the ball (its player nearest the ball). */
+function inbound(g, t) {
+  g = writeGame({ ...g, phase: "play", shotEnds: t + CONFIG.shotClockMs });
+  const id = nearestOf(g, g.poss, ballSpot());
+  if (id) { Object.assign(ball, { st: "held", own: id, f: null, at: 0 }); writeBall(); }
+  return g;
+}
+function turnover(g) {
+  const team = 1 - g.poss, id = nearestOf(g, team, ballSpot());
+  if (!id) return g;
+  return callout(give(g, id), "clock", CALLS.clock, `${TEAMS[team].name} ball`, team);
+}
+function hostPickup(g) {
+  let best = "", bd = CONFIG.pickupR;
+  for (const id of g.seats) {
+    const d = bodyOf(id); if (!d || d.a === 1 || (host.down.get(id) || 0) > performance.now() || ball.y > 2.5 + d.j) continue; // a player just shoved can't grab it (its own write says so a moment later)
+    const dd = Math.hypot(d.x - ball.x, d.z - ball.z); if (dd < bd) { bd = dd; best = id; }
+  }
+  return best ? give(g, best) : g;
+}
+function hostTick(dt, now) {
+  if (!host.wasHost) adopt();
+  const t = Date.now();
+  let g = game();
+  if (!g) { g = writeGame(newGame(1)); syncBots(g); tipOff(g); }
+  const seats = arrangeSeats(g.seats, humans());
+  if (seats.join() !== g.seats.join()) g = writeGame({ ...g, seats });
+  syncBots(g);
+  if (ball.st === "held" && seatOf(g, ball.own) < 0) { const p = ballSpot(); loose(p.x, 1, p.z, 0, 0, 0); } // the holder left
+  if (ball.st === "flight" && ball.f && ball.f.k === "pass" && seatOf(g, ball.f.to) < 0) { const p = flightPos(ball.f, 0); loose(p.x, 1.2, p.z, 0, 0, 0); }
+  if (g.phase === "play" && t >= g.liveAt) {
+    g = hostFlight(g, t);
+    if (ball.st === "loose") { stepLoose(ball, dt); g = hostPickup(g); }
+    if (g.phase === "play") {
+      if (t >= g.qEnds && !(ball.st === "flight" && ball.f.k !== "pass")) g = endQuarter(g, t); // a shot in the air still counts
+      else if (t >= g.shotEnds && ball.st !== "flight" && !ball.at) g = turnover(g);
+    }
+  } else if (ball.st === "loose" || ball.st === "dead") stepLoose(ball, dt);
+  if (g.phase === "score" && t >= g.phaseEnds) g = t >= g.qEnds ? endQuarter(g, t) : inbound(g, t);
+  else if (g.phase === "break" && t >= g.phaseEnds) g = nextQuarter(g, t);
+  else if (g.phase === "over") {
+    const seated = g.seats.filter((id) => !isBot(id)), ready = seated.length && seated.every((id) => (id === net.sessionId ? myReady : (S.entities.players[id] || {}).rdy) === g.id);
+    if (t > g.endsAt || ready) { g = writeGame(newGame(g.id + 1)); syncBots(g); tipOff(g); }
+  }
+  for (const b of host.bots.values()) botTick(b, g, dt, now, t);
+  if (now - host.lastBall > CONFIG.sendMs) writeBall(true);
+}
+
+// ── BOTS ────────────────────────────────────────────────────────────────────────────
+// The host runs every bot. Each one decides every ~CONFIG.botThink ms and runs toward its target in between.
+function botTick(b, g, dt, now, t) {
+  const seat = seatOf(g, b.id); if (seat < 0) return;
+  const team = teamOfSeat(seat), f = ball.f;
+  if (b.j > 0 || b.vj > 0) { b.vj -= CONFIG.gravity * dt; b.j = Math.max(0, b.j + b.vj * dt); if (b.j === 0) b.vj = 0; }
+  b.a = now < b.knockUntil ? 1 : now < b.swipeShow ? 2 : b.shooting ? 3 : 0;
+  if (f && f.k === "dunk" && f.by === b.id) { const d = dunkBody(f, flightElapsed(f)); if (d) { Object.assign(b, { x: d.x, z: d.z, j: d.j, vj: 0, vx: 0, vz: 0 }); return; } } // flying to the rim
+  if (b.a === 1) { b.x += b.vx * dt; b.z += b.vz * dt; b.vx *= Math.exp(-4 * dt); b.vz *= Math.exp(-4 * dt); keepOnCourt(b); return; } // knocked down
+  if (g.phase === "play" && t < g.liveAt) { Object.assign(b, { x: SPOTS[seat][0], z: SPOTS[seat][1], vx: 0, vz: 0 }); return; } // waiting for the quarter
+  if (b.shooting && now >= b.releaseAt) { // let go of a jump shot
+    b.shooting = false;
+    if (ball.st === "held" && ball.own === b.id && g.phase === "play") launchShot(g, b.id, team, b.x, b.z, b.j, releaseQuality((now - b.jumpAt) / 1000 - peakT()));
+  }
+  if (b.blockAt && now >= b.blockAt) { b.blockAt = 0; if (b.j === 0) b.vj = CONFIG.jumpV; }
+  if (now >= b.thinkAt) {
+    b.thinkAt = now + CONFIG.botThink * (0.7 + Math.random() * 0.6);
+    if (g.phase === "play") botThink(b, g, seat, team, now, t);
+    else if (g.phase === "score" && g.poss !== team) { b.tx = rimXOf(1 - team) * 0.55; b.tz = SPOTS[seat][1]; b.wantTurbo = false; } // just scored: get back on defence
+    else { b.tx = b.x; b.tz = b.z; b.wantTurbo = false; }
+  }
+  if (g.phase === "play") botReact(b, g, team, dt, now);
+  const fire = (g.fire || []).includes(b.id), dx = b.tx + b.ex - b.x, dz = b.tz + b.ez - b.z, d = Math.hypot(dx, dz), m = Math.min(1, d / 0.8);
+  const turbo = b.wantTurbo && (b.turbo > 5 || fire) && d > 1, air = b.j > 0 || b.shooting;
+  const top = (turbo ? CONFIG.turboSpeed : CONFIG.runSpeed) * CONFIG.botSpeed * (air ? 0.35 : 1), a = 1 - Math.exp(-CONFIG.accel * dt * (air ? 0.3 : 1));
+  b.turbo = clamp(b.turbo + (turbo && !fire ? -CONFIG.turboDrain : CONFIG.turboRegen) * dt, 0, CONFIG.turboMax);
+  b.vx += ((d ? dx / d : 0) * m * top - b.vx) * a; b.vz += ((d ? dz / d : 0) * m * top - b.vz) * a;
+  b.x += b.vx * dt; b.z += b.vz * dt;
+  for (const id of g.seats) { const o = id !== b.id && bodyOf(id); if (o) pushApart(b, o); }
+  keepOnCourt(b);
+}
+/** Every frame: jump at a shot or dunk going up close by, or at a rebound coming down. */
+function botReact(b, g, team, dt, now) {
+  if (b.j > 0 || b.blockAt || b.a) return;
+  const chance = (p, window) => Math.random() < 1 - Math.pow(1 - p, dt / window);
+  if (ball.st === "held" && teamOf(g, ball.own) === 1 - team) {
+    const h = bodyOf(ball.own);
+    if (h && (h.a === 3 || h.j > 0.1) && Math.hypot(h.x - b.x, h.z - b.z) < 2.2 && chance(CONFIG.botBlock, 0.3)) b.blockAt = now + 80 + Math.random() * 120;
+  }
+  if (ball.st === "flight" && ball.f && ball.f.k === "dunk" && ball.f.team !== team) {
+    const h = dunkHand(ball.f, flightElapsed(ball.f) + 0.25);
+    if (Math.hypot(h.x - b.x, h.z - b.z) < 1.6 && chance(CONFIG.botBlock, 0.4)) b.blockAt = now + 40;
+  }
+  if (ball.st === "loose" && ball.vy < 0 && ball.y > 2.2 && ball.y < 3.6 && Math.hypot(ball.x - b.x, ball.z - b.z) < 1.2) b.blockAt = now + 30;
+}
+function botThink(b, g, seat, team, now, t) {
+  const dir = attackDir(team), rx = rimXOf(team), myRim = rimXOf(1 - team), mate = g.seats[seat ^ 1], man = g.seats[seat ^ 2];
+  b.ex = (Math.random() - 0.5) * 0.8; b.ez = (Math.random() - 0.5) * 0.8; b.wantTurbo = false;
+  const holder = ball.st === "held" ? ball.own : "", passTo = ball.st === "flight" && ball.f && ball.f.k === "pass" ? ball.f.to : "";
+  const ours = teamOf(g, holder || passTo);
+  if (holder !== b.id) b.plan = null; // a new possession gets a new plan
+  if (holder === b.id) return botWithBall(b, g, team, mate, t);
+  if (ours === team) { // we have it: get open on the other wing, or cut to the rim
+    const h = bodyOf(holder || passTo) || b, side = h.z > 0 ? -1 : 1;
+    if (Math.random() < 0.22) { b.tx = rx - dir * 2.2; b.tz = side * 1.5; b.wantTurbo = true; }
+    else { b.tx = rx - dir * (6.4 + Math.random() * 1.2); b.tz = side * (3 + Math.random() * 2); }
+    return;
+  }
+  if (ours === 1 - team) { // they have it: stay between my man and my rim, and grab at the ball
+    const m = bodyOf(man); if (!m) return;
+    const gx = myRim - m.x, gz = -m.z, gl = Math.hypot(gx, gz) || 1, close = man === holder ? 1.0 : 1.8;
+    b.tx = m.x + (gx / gl) * close; b.tz = m.z + (gz / gl) * close; b.ex *= 0.4; b.ez *= 0.4;
+    b.wantTurbo = Math.hypot(b.tx - b.x, b.tz - b.z) > 3;
+    if (man === holder && Math.hypot(m.x - b.x, m.z - b.z) < CONFIG.stealR && now > b.swipeAt && Math.random() < CONFIG.botSteal) {
+      const shove = b.turbo > 30 && Math.random() < 0.3;
+      b.swipeAt = now + CONFIG.swipeCd; b.swipeShow = now + 250; if (shove) b.turbo -= 25;
+      applySwipe(b.id, { g: g.id, turbo: shove ? 1 : 0 });
+    }
+    return;
+  }
+  if (ball.st === "loose") { // nobody has it: the nearest on each team chases it, the other hangs back
+    const p = { x: ball.x + ball.vx * 0.35, z: ball.z + ball.vz * 0.35 };
+    if (nearestOf(g, team, p) === b.id || Math.random() < 0.3) { b.tx = p.x; b.tz = p.z; b.ex = b.ez = 0; b.wantTurbo = true; }
+    else { b.tx = lerp(p.x, myRim, 0.4); b.tz = p.z * 0.5; }
+    return;
+  }
+  if (ball.st === "flight" && ball.f) { // a shot in the air: crash the boards
+    const fr = rimXOf(ball.f.team);
+    b.tx = fr - attackDir(ball.f.team) * (1.6 + Math.random() * 1.5); b.tz = (seat % 2 ? 1 : -1) * (0.8 + Math.random() * 1.5);
+  }
+}
+/** A bot with the ball picks a plan for the possession: a three, a jumper, or a drive to the rim. It dunks when close,
+ *  shoots from its spot (or when the shot clock runs down) and passes when crowded. */
+function botWithBall(b, g, team, mate, t) {
+  if (b.shooting || b.j > 0) return;
+  const rx = rimXOf(team), dir = attackDir(team), d = rimDist(b.x, b.z, team), left = g.shotEnds - t;
+  if (!b.plan) {
+    const r = Math.random(), a = (Math.random() - 0.5) * 2.1, out = r < CONFIG.botThree ? CONFIG.threeR + 0.7 : r < CONFIG.botThree + CONFIG.botMid ? 4.6 : 0;
+    b.plan = out ? { x: rx - dir * Math.cos(a) * out, z: Math.sin(a) * out, at: t } : { drive: true, at: t };
+  }
+  const defs = g.seats.filter((id, s) => teamOfSeat(s) !== team).map(bodyOf).filter(Boolean);
+  const near = Math.min(99, ...defs.map((o) => Math.hypot(o.x - b.x, o.z - b.z)));
+  const blocked = defs.some((o) => Math.abs(o.z - b.z) < 1 && (o.x - b.x) * dir > 0 && (o.x - b.x) * dir < 2.2); // someone right in front
+  const turboOk = b.turbo > 15 || (g.fire || []).includes(b.id);
+  const range = b.plan.drive ? (turboOk && !blocked ? CONFIG.dunkRangeTurbo * 0.85 : CONFIG.dunkRange) : 2.2;
+  if (d < range && Math.random() < CONFIG.botDunk) {
+    if (turboOk) b.turbo = Math.max(0, b.turbo - 10);
+    launchDunk(g, b.id, team, b.x, b.z); return;
+  }
+  const there = !b.plan.drive && Math.hypot(b.plan.x - b.x, b.plan.z - b.z) < 0.9;
+  if (left < 2500 || (there && (near > 1.1 || t - b.plan.at > 1800))) { botJumpShot(b, performance.now()); return; }
+  if (bodyOf(mate) && near < 1.3 && Math.random() < CONFIG.botPass) { passBall(g, b.id, mate); return; }
+  if (b.plan.drive) {
+    if (Math.random() < 0.2) b.laneZ = (Math.random() - 0.5) * 7;
+    b.tx = rx - dir * 1.2; b.tz = b.laneZ * clamp((d - 2) / 7, 0, 1);
+    b.wantTurbo = d < 11 && Math.random() < 0.55;
+  } else { b.tx = b.plan.x; b.tz = b.plan.z; b.ex = b.ez = 0; b.wantTurbo = Math.hypot(b.tx - b.x, b.tz - b.z) > 4; }
+}
+function botJumpShot(b, now) {
+  const [best, worst] = CONFIG.botRelease, off = (best + Math.random() * (worst - best)) * (Math.random() < 0.5 ? -1 : 1);
+  Object.assign(b, { shooting: true, vj: CONFIG.jumpV, jumpAt: now, releaseAt: now + (peakT() + off) * 1000, vx: b.vx * 0.3, vz: b.vz * 0.3 });
+}
+
+// ── ME ──────────────────────────────────────────────────────────────────────────────
+let myName = "";
+try { myName = localStorage.getItem("mpa-name") || ""; } catch {}
+myName = myName || ["Swift", "Turbo", "Sky", "Slick", "Rocket", "Smooth"][Math.floor(Math.random() * 6)] + " " + ["Jammer", "Hooper", "Dunker", "Baller", "Splash"][Math.floor(Math.random() * 5)];
+let myColor = COLORS[0], myReady = 0; // the color is picked on join: the first one nobody in the room has
+const me = { id: "", x: 0, z: 0, vx: 0, vz: 0, j: 0, vj: 0, a: 0, turbo: CONFIG.turboMax, knockUntil: 0, shooting: false, jumpAt: 0, gatherUntil: 0,
+  swipeAt: 0, swipeShow: 0, placed: "", lastSend: 0, lastJson: "", rel: null };
+const input = { turbo: false }; // the TURBO button or key, held
+/** Send an intent to the host; the host applies its own directly (mp.send never comes back to the sender). */
+function sendIntent(type, data) {
+  if (isHost()) ({ shoot: applyShoot, pass: applyPass, swipe: applySwipe })[type](net.sessionId, data);
+  else net.send(type, data);
+}
+function myTick(dt, g, now) {
+  const seat = seatOf(g, net.sessionId), t = Date.now();
+  if (seat < 0) return;
+  const key = `${g.id}:${g.ko}`, fire = (g.fire || []).includes(net.sessionId);
+  if (key !== me.placed) { me.placed = key; Object.assign(me, { x: SPOTS[seat][0], z: SPOTS[seat][1], vx: 0, vz: 0, j: 0, vj: 0, shooting: false, knockUntil: 0, gatherUntil: 0 }); }
+  const f = ball.f, dunk = f && f.k === "dunk" && f.by === net.sessionId ? dunkBody(f, flightElapsed(f)) : null;
+  if (dunk) Object.assign(me, { x: dunk.x, z: dunk.z, j: dunk.j, vj: 0, vx: 0, vz: 0, gatherUntil: 0 }); // the dunk carries me to the rim
+  else {
+    if (me.j > 0 || me.vj > 0) { me.vj -= CONFIG.gravity * dt; me.j = Math.max(0, me.j + me.vj * dt); if (me.j === 0) { me.vj = 0; if (me.shooting) release(g, now); } } // landed still holding it: a bad shot
+    const frozen = g.phase === "play" && t < g.liveAt;
+    if (now < me.knockUntil) { me.x += me.vx * dt; me.z += me.vz * dt; me.vx *= Math.exp(-4 * dt); me.vz *= Math.exp(-4 * dt); }
+    else if (frozen || now < me.gatherUntil) { me.vx = me.vz = 0; }
+    else {
+      const [ix, iz] = myInput(), turbo = input.turbo && (me.turbo > 2 || fire) && (ix || iz), air = me.j > 0;
+      const top = (turbo ? CONFIG.turboSpeed : CONFIG.runSpeed) * (air ? 0.35 : 1), a = 1 - Math.exp(-CONFIG.accel * dt * (air ? 0.3 : 1));
+      me.vx += (ix * top - me.vx) * a; me.vz += (iz * top - me.vz) * a;
+      me.x += me.vx * dt; me.z += me.vz * dt;
+      me.turbo = clamp(me.turbo + (turbo && !fire ? -CONFIG.turboDrain : CONFIG.turboRegen) * dt, 0, CONFIG.turboMax);
+    }
+    for (const id of g.seats) { const o = id !== net.sessionId && bodyOf(id); if (o) pushApart(me, o); }
+    keepOnCourt(me);
+  }
+  me.a = now < me.knockUntil ? 1 : now < me.swipeShow ? 2 : me.shooting || now < me.gatherUntil ? 3 : 0;
+  const json = JSON.stringify({ x: r2(me.x), z: r2(me.z), vx: r2(me.vx), vz: r2(me.vz), j: r2(me.j), a: me.a });
+  if (now - me.lastSend > CONFIG.sendMs && json !== me.lastJson) { me.lastSend = now; me.lastJson = json; net.me.set("p", json); }
+}
+const canAct = (g, now) => g && seatOf(g, net.sessionId) >= 0 && g.phase === "play" && Date.now() >= g.liveAt && now >= me.knockUntil;
+/** SHOOT pressed: with the ball, a dunk near the rim or the start of a jump shot; without it, a jump (block or rebound). */
+function shootDown() {
+  const g = game(), now = performance.now();
+  if (!canAct(g, now) || me.j > 0 || now < me.gatherUntil) return;
+  const team = teamOf(g, net.sessionId), fire = (g.fire || []).includes(net.sessionId);
+  if (ball.st === "held" && ball.own === net.sessionId) {
+    const turbo = input.turbo && (me.turbo > 5 || fire);
+    if (rimDist(me.x, me.z, team) < (turbo ? CONFIG.dunkRangeTurbo : CONFIG.dunkRange)) {
+      me.gatherUntil = now + 700; sfx("jump");
+      sendIntent("shoot", { g: g.id, x: r2(me.x), z: r2(me.z), j: 0, q: 1, dunk: 1 });
+      return;
+    }
+    me.shooting = true;
+  }
+  me.vj = CONFIG.jumpV; me.jumpAt = now; sfx("jump");
+}
+function shootUp() { const g = game(); if (g && me.shooting && me.j > 0) release(g, performance.now()); }
+/** Let go of a jump shot: how close to the top of the jump decides the release quality. */
+function release(g, now) {
+  me.shooting = false;
+  if (!(ball.st === "held" && ball.own === net.sessionId) || g.phase !== "play") return;
+  const q = releaseQuality((now - me.jumpAt) / 1000 - peakT());
+  me.rel = { q, at: now };
+  sendIntent("shoot", { g: g.id, x: r2(me.x), z: r2(me.z), j: r2(me.j), q: r2(q) });
+}
+/** PASS pressed: on offence pass (or call for the ball); on defence grab at it, or shove with turbo. */
+function passDown() {
+  const g = game(), now = performance.now();
+  if (!canAct(g, now) || ball.st !== "held") return;
+  const team = teamOf(g, net.sessionId), fire = (g.fire || []).includes(net.sessionId);
+  if (teamOf(g, ball.own) === team) { sendIntent("pass", { g: g.id }); return; }
+  if (now < me.swipeAt) return;
+  const turbo = input.turbo && (me.turbo > 15 || fire);
+  me.swipeAt = now + CONFIG.swipeCd; me.swipeShow = now + 250;
+  if (turbo && !fire) me.turbo -= 20;
+  sendIntent("swipe", { g: g.id, turbo: turbo ? 1 : 0 });
+}
+function knockMe(dx, dz) { Object.assign(me, { knockUntil: performance.now() + CONFIG.knockMs, vx: dx * 4, vz: dz * 4, shooting: false, gatherUntil: 0 }); }
+
+// ── VIEWS ───────────────────────────────────────────────────────────────────────────
+const views = new Map(); // id -> another person's (or, not host, a bot's) baller, eased toward its last write
+function syncViews(dt) {
+  const now = performance.now(), k = 1 - Math.exp(-dt * 14), seen = new Set(), src = [];
+  for (const [id, p] of Object.entries(S.entities.players || {})) if (id !== net.sessionId && p.p) src.push([id, p.p, cached("p:" + id, p.p, null)]);
+  if (!host.wasHost) { const s = cached("ball", S.shared.ball, null); for (const q of (s && s.b) || []) src.push([q[0], s.s, { x: q[1], z: q[2], vx: q[3], vz: q[4], j: q[5], a: q[6] }]); }
+  for (const [id, raw, f] of src) {
+    if (!f || typeof f.x !== "number") continue;
+    seen.add(id);
+    let v = views.get(id);
+    if (!v) { v = { id, x: f.x, z: f.z, vx: 0, vz: 0, j: 0, a: 0, tx: f.x, tz: f.z, tj: 0, raw: null, at: now }; views.set(id, v); }
+    if (raw !== v.raw) {
+      Object.assign(v, { tx: f.x, tz: f.z, vx: +f.vx || 0, vz: +f.vz || 0, tj: +f.j || 0, a: +f.a || 0, raw, at: now });
+      if (Math.hypot(v.tx - v.x, v.tz - v.z) > 4) { v.x = v.tx; v.z = v.tz; } // a quarter start: jump there
+    }
+    const ahead = Math.min(0.15, (now - v.at) / 1000); // guess ahead with its speed, a little
+    v.x += (v.tx + v.vx * ahead - v.x) * k; v.z += (v.tz + v.vz * ahead - v.z) * k;
+    v.j += (v.tj - v.j) * (1 - Math.exp(-dt * 22));
+  }
+  for (const id of views.keys()) if (!seen.has(id)) views.delete(id);
+}
+/** Where a baller is on this screen: mine, a bot (the host's live one), or eased from its writes. */
+function bodyOf(id) {
+  if (!id) return null;
+  if (id === net.sessionId) return me;
+  return (host.wasHost && host.bots.get(id)) || views.get(id) || null;
+}
+/** As bodyOf, but a dunker is drawn on its dunk's path, so every screen sees the same smooth flight. */
+function drawnBody(id) {
+  const d = bodyOf(id), f = ball.f;
+  if (d && f && f.k === "dunk" && f.by === id) { const p = dunkBody(f, flightElapsed(f)); if (p) return { ...d, x: p.x, z: p.z, j: p.j, a: 3 }; }
+  return d;
+}
+/** Not the host: take in each new ball write, then run a loose ball on by itself until the next one. */
+function predictBall(dt) {
+  const s = cached("ball", S.shared.ball, null);
+  if (s && s.s !== pred.lastS) {
+    pred.lastS = s.s;
+    const was = ballKey();
+    Object.assign(ball, { st: s.st, own: s.own || "", f: s.f || null, at: s.at || 0, x: s.x, y: s.y, z: s.z, vx: s.vx, vy: s.vy, vz: s.vz });
+    if (ball.f) flightElapsed(ball.f); // starts its clock on this screen
+    if (ball.st === "loose" || ball.st === "dead" || ballKey() !== was) bv.jump = true;
+  }
+  if (ball.st === "loose" || ball.st === "dead") stepLoose(ball, dt);
+}
+const ballKey = () => `${ball.st}|${ball.own}|${ball.f ? ball.f.n : 0}`;
+/** Where the ball sits in a baller's hands: dribbling, over the head (a shot coming), or at the chest (a catch). */
+function handPos(id, d, now, chest) {
+  const f = facing.get(id) ?? 0, fx = Math.sin(f), fz = Math.cos(f);
+  if (chest) return { x: d.x + fx * 0.4, y: 1.3 + d.j, z: d.z + fz * 0.4 };
+  if (d.j > 0.05 || d.a === 3) return { x: d.x + fx * 0.15, y: 2.45 + d.j, z: d.z + fz * 0.15 };
+  const bounce = Math.abs(Math.sin((now / 1000) * 8.5 + id.length));
+  return { x: d.x + fx * 0.34 - fz * 0.28, y: CONFIG.ballR + bounce * 0.8, z: d.z + fz * 0.34 + fx * 0.28 };
+}
+
+// ── DRAW ────────────────────────────────────────────────────────────────────────────
+const facing = new Map();                    // id -> the way its baller faces (rotation.y)
+const seatViews = [null, null, null, null];  // seat -> { g: the baller drawn there, who }
+const bv = { x: 0, y: 1, z: 0, ox: 0, oy: 0, oz: 0, key: "", jump: false, dribble: false, lastF: null }; // the ball as drawn
+/** Bots take the colors no person in the seats uses, from the end of the list (people pick from the start). */
+function botColors(g) {
+  const used = new Set(g.seats.filter((id) => !isBot(id)).map((id) => (id === net.sessionId ? myColor : (S.entities.players[id] || {}).c)));
+  const free = COLORS.filter((c) => !used.has(c)).reverse();
+  let k = 0;
+  return g.seats.map((id) => (isBot(id) ? free[k++ % free.length] : null));
+}
+function colorOf(g, id) {
+  if (id === net.sessionId) return myColor;
+  if (isBot(id)) return botColors(g)[seatOf(g, id)] || "#ccc";
+  return (S.entities.players[id] || {}).c || "#ccc";
+}
+function skinOf(id) { let h = 7; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return SKINS[h % SKINS.length]; }
+function drawBallers(g, dt, now) {
+  const holder = ball.st === "held" ? ball.own : "";
+  for (let s = 0; s < 4; s++) {
+    const id = g.seats[s], d = drawnBody(id), mine = id === net.sessionId, who = `${id}|${colorOf(g, id)}|${nameOf(id)}`;
+    if (!seatViews[s] || seatViews[s].who !== who) {
+      if (seatViews[s]) scene.remove(seatViews[s].g);
+      seatViews[s] = { g: makeBaller(teamOfSeat(s), colorOf(g, id), skinOf(id), ATTRACT ? "" : mine ? "YOU" : nameOf(id), mine), who };
+    }
+    const av = seatViews[s].g, u = av.userData;
+    av.visible = !!d; if (!d) continue;
+    av.position.set(d.x, d.j, d.z);
+    // facing: where it runs; standing, the holder faces its rim and everyone else the ball
+    const sp = Math.hypot(d.vx || 0, d.vz || 0), cur0 = facing.get(id);
+    const want = sp > 0.8 && d.a !== 1 ? Math.atan2(d.vx, d.vz) : id === holder ? Math.atan2(rimXOf(teamOfSeat(s)) - d.x, -d.z) : Math.atan2(bv.x - d.x, bv.z - d.z);
+    const cur = cur0 === undefined ? want : cur0 + Math.atan2(Math.sin(want - cur0), Math.cos(want - cur0)) * (1 - Math.exp(-dt * 12));
+    facing.set(id, cur); av.rotation.y = cur;
+    // legs run, arms dribble, go up for a shot, swipe on a steal; knocked down = flat on its back
+    u.run += dt * sp * 2.2;
+    const swing = Math.sin(u.run) * Math.min(1, sp / 4) * 0.9, air = d.j > 0.05, up = d.a === 3 || air;
+    u.legs[0].rotation.x = air ? -0.5 : swing; u.legs[1].rotation.x = air ? 0.3 : -swing;
+    u.arms[0].rotation.x = d.a === 2 ? -1.7 : up ? -2.9 : -swing * 0.7;
+    u.arms[1].rotation.x = up ? -2.9 : id === holder ? -0.7 - Math.abs(Math.sin((now / 1000) * 8.5 + id.length)) * 0.5 : swing * 0.7;
+    u.fall += ((d.a === 1 ? 1 : 0) - u.fall) * (1 - Math.exp(-dt * 10));
+    u.rig.rotation.x = -u.fall * 1.45; u.rig.position.y = u.fall * 0.28;
+    u.ring.position.y = 0.02 - d.j; // the ring stays on the floor
+    u.ring.material.opacity = mine ? 0.65 + Math.sin(now / 160) * 0.3 : 0.75;
+    if ((g.fire || []).includes(id) && Math.random() < dt * 30) emit(d.x, 1.7 + d.j, d.z, ["#ff5a00", "#ffd23f", "#ff2d00"], 1, 0.4, 1.2, -3, 0.5, 0.9); // on fire
+  }
+}
+function drawBall(g, dt, now) {
+  let p;
+  if (ball.st === "held") { const d = drawnBody(ball.own); p = d ? handPos(ball.own, d, now) : { x: ball.x, y: 1, z: ball.z }; }
+  else if (ball.st === "flight" && ball.f) p = flightPos(ball.f, flightElapsed(ball.f));
+  else p = { x: ball.x, y: ball.y, z: ball.z };
+  const key = ballKey();
+  if (key !== bv.key || bv.jump) { // what the ball is doing changed: blend from where it was drawn
+    if (key !== bv.key) ballFx(bv.key, key);
+    const dx = bv.x - p.x, dy = bv.y - p.y, dz = bv.z - p.z, far = Math.hypot(dx, dy, dz) > 4;
+    bv.ox = far ? 0 : dx; bv.oy = far ? 0 : dy; bv.oz = far ? 0 : dz; bv.key = key; bv.jump = false;
+  }
+  if (ball.f) bv.lastF = ball.f;
+  const k = Math.exp(-dt * 12); bv.ox *= k; bv.oy *= k; bv.oz *= k;
+  bv.x = p.x + bv.ox; bv.y = Math.max(CONFIG.ballR, p.y + bv.oy); bv.z = p.z + bv.oz;
+  ballMesh.position.set(bv.x, bv.y, bv.z);
+  ballMesh.rotation.x += dt * 8; ballMesh.rotation.z += dt * 3;
+  const by = ball.st === "held" ? ball.own : ball.f ? ball.f.by : "", hot = !!by && (g.fire || []).includes(by);
+  ballMesh.material = hot ? FIRE_MAT : BALL_MAT;
+  if (hot) emit(bv.x, bv.y, bv.z, ["#ff5a00", "#ffd23f", "#ff2d00", "#fff1a0"], 2, 0.5, 1.5, -4, 0.45, 1.3); // a flaming ball
+  if (ball.st === "held" && ball.own === net.sessionId) { const low = p.y < CONFIG.ballR + 0.08; if (low && !bv.dribble) sfx("dribble"); bv.dribble = low; }
+}
+/** Effects from what the ball just did, on every screen: a basket (net, confetti, crowd) or a clang off the rim. */
+function ballFx(was, now) {
+  const f = bv.lastF, st = now.split("|")[0];
+  if (!was.startsWith("flight|") || !f || f.k === "pass") return;
+  const hoop = hoopOf(f.team);
+  if (st === "dead") {
+    const dunk = f.k === "dunk";
+    hoop.wob = dunk ? 1 : 0.6; hype = Math.min(1.6, hype + (dunk ? 1.4 : f.pts === 3 ? 1.1 : 0.7));
+    emit(hoop.rx, CONFIG.rimY - 0.2, 0, [TEAMS[f.team].color, "#ffd23f", "#ffffff"], dunk ? 70 : 40, dunk ? 4 : 2.5, 3.5, 9, 1.2);
+    popText(`+${f.pts}`, hoop.rx - attackDir(f.team) * 0.7, CONFIG.rimY + 0.9, 0, f.pts === 3 ? "#7dffb0" : "#ffd23f");
+    if (dunk) { cam.shake = 0.7; sfx("dunk"); } else sfx("swish");
+    sfx("crowd");
+  } else if (st === "loose") { hoop.wob = Math.max(hoop.wob, 0.45); sfx("rim"); }
+}
+function drawHoops(dt, now) {
+  for (const h of HOOPS) {
+    h.wob = Math.max(0, h.wob - dt * 1.8);
+    h.rim.position.y = CONFIG.rimY - h.wob * 0.06 + Math.sin(now / 30) * h.wob * 0.02;
+    h.rim.rotation.y = h.side * h.wob * 0.22; // a dunk bends the rim down
+    h.net.scale.set(1 - h.wob * 0.15, 1 + Math.sin(now / 45) * h.wob * 0.3, 1 - h.wob * 0.15);
+  }
+}
+// The broadcast camera: from the side, following the ball (a little ahead of it toward the rim being attacked).
+const cam = { x: 0, shake: 0, ready: false };
+function aimCamera(g, dt) {
+  const portrait = camera.aspect < 1, close = ATTRACT ? 0.8 : 1;
+  let fx = bv.x;
+  if (ball.st === "held") { const t = teamOf(g, ball.own); if (t >= 0) fx += attackDir(t) * 2.5; }
+  const dist = (portrait ? 11 : 14.5) * close, hgt = (portrait ? 17 : 6.6) * close;
+  const half = Math.tan((camera.fov * Math.PI) / 360) * camera.aspect * Math.hypot(dist, hgt), lim = Math.max(0, HL + 2.2 - half);
+  const target = clamp(fx, -lim, lim);
+  cam.x = cam.ready ? lerp(cam.x, target, 1 - Math.exp(-dt * 3)) : target; cam.ready = true;
+  cam.shake = Math.max(0, cam.shake - dt * 1.5);
+  const sx = (Math.random() - 0.5) * cam.shake * 0.5, sy = (Math.random() - 0.5) * cam.shake * 0.5;
+  camera.position.set(cam.x + sx, hgt + sy, dist);
+  camera.lookAt(cam.x, portrait ? 0 : 0.9, portrait ? 1.6 : -1.2);
+}
+function fit() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.fov = camera.aspect < 1 ? 64 : 40; camera.updateProjectionMatrix(); }
+addEventListener("resize", fit); addEventListener("orientationchange", fit); fit();
+
+// ── HUD & RESULTS ───────────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const touchUI = matchMedia("(pointer: coarse)").matches && !ATTRACT;
+let board = null, boardFor = -1, seenCall = "", seenLive = "", msgUntil = 0, dropped = false;
+const startedAt = performance.now();
+function nameOf(id) {
+  if (!id) return "Someone";
+  if (id === net.sessionId) return myName;
+  if (isBot(id)) return BOT_NAMES[+id.slice(1) - 1] || "Bot";
+  return String((S.entities.players[id] || {}).n || "Player");
+}
+function say(text, sub, color, ms) {
+  $("msg").innerHTML = `<span style="color:${color}">${esc(text)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}`;
+  msgUntil = performance.now() + ms;
+}
+function hud(g, now) {
+  const t = Date.now(), seat = seatOf(g, net.sessionId), team = seat < 0 ? -1 : teamOfSeat(seat);
+  // the announcer: every screen shows the host's latest callout from state (not one seen before joining)
+  const ck = g.call ? `${g.id}:${g.call.n}` : `${g.id}:0`;
+  if (ck !== seenCall) {
+    const c = g.call;
+    if (seenCall && c) {
+      const color = c.text === CALLS.fire || c.k === "dunk" ? "#ffd23f" : c.team >= 0 ? TEAMS[c.team].color : "#ffffff";
+      say(c.text, c.sub, color, c.k === "end" ? 2300 : 1700);
+      if (c.k === "block") sfx("block"); if (c.k === "steal") sfx("steal"); if (c.k === "end" || c.k === "clock") sfx("buzzer");
+      if (c.text === CALLS.fire) hype = 1.6;
+    }
+    seenCall = ck;
+  }
+  const lk = `${g.id}:${g.ko}`;
+  if (g.phase === "play" && t < g.liveAt) say(g.q > CONFIG.quarters ? "OVERTIME" : `QUARTER ${g.q}`, `Tip-off in ${Math.ceil((g.liveAt - t) / 1000)}`, "#ffffff", 300);
+  else if (g.phase === "play" && seenLive !== lk) { seenLive = lk; if (t < g.liveAt + 1500) { say("JAM ON!", "", "#ffd23f", 900); sfx("whistle"); } }
+  $("msg").classList.toggle("on", now < msgUntil);
+  // the scorebug
+  $("s0").textContent = g.score[0]; $("s1").textContent = g.score[1];
+  $("t0").classList.toggle("me", team === 0); $("t1").classList.toggle("me", team === 1);
+  for (const k of [0, 1]) $("h" + k).hidden = !(g.fire || []).some((id) => teamOf(g, id) === k);
+  const left = g.phase === "over" ? 0 : Math.max(0, Math.ceil((g.qEnds - Math.max(t, g.liveAt)) / 1000));
+  $("qtr").textContent = g.phase === "over" ? "FINAL" : g.q > CONFIG.quarters ? "OT" : `Q${g.q}`;
+  $("clock").textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  $("clock").classList.toggle("low", g.phase === "play" && left <= 10);
+  const shot = Math.max(0, Math.ceil((g.shotEnds - Math.max(t, g.liveAt)) / 1000));
+  $("shot").textContent = g.phase === "play" && !ball.at ? `SHOT ${shot}` : "";
+  $("shot").classList.toggle("low", shot <= 4);
+  if (ATTRACT) { for (const id of ["hint", "net"]) $(id).textContent = ""; document.querySelector("#bug .mid").hidden = true; $("over").hidden = true; return; }
+  // controls: the hint, the touch buttons' labels, my turbo
+  const mine = ball.st === "held" && ball.own === net.sessionId, ours = ball.st === "held" && teamOf(g, ball.own) === team;
+  $("hint").textContent = seat < 0 ? "All four spots are taken: you're watching, and you play next game." : touchUI
+    ? "Stick: run · SHOOT: let go at the top of your jump · near the rim: DUNK"
+    : "WASD or arrows to run · J shoot (let go at the top of the jump; near the rim it dunks) · K pass, or steal on defence · Shift turbo";
+  $("hint").style.opacity = now - startedAt < 11000 || seat < 0 ? 1 : 0;
+  $("bShoot").textContent = mine ? (rimDist(me.x, me.z, team) < (input.turbo ? CONFIG.dunkRangeTurbo : CONFIG.dunkRange) ? "DUNK" : "SHOOT") : "JUMP";
+  $("bPass").textContent = ours || ball.st !== "held" ? "PASS" : "STEAL";
+  $("turbo").hidden = seat < 0;
+  $("turbo").classList.toggle("fire", (g.fire || []).includes(net.sessionId));
+  $("turbo").querySelector("b").style.width = `${(me.turbo / CONFIG.turboMax) * 100}%`;
+  const n = livePlayers().length;
+  $("net").textContent = net.offline ? "Offline: playing with bots" : dropped ? "Reconnecting…" : `Online · ${n} player${n === 1 ? "" : "s"}${isHost() ? " · you run the ball" : ""}`;
+  // the results card
+  const card = g.phase === "over" && t > g.endsAt - CONFIG.resultsMs + 1800;
+  $("over").hidden = !card;
+  if (!card) return;
+  const won = team >= 0 && g.win === team;
+  $("winner").textContent = won ? "You win!" : `${TEAMS[g.win].name} win!`; $("winner").style.color = TEAMS[g.win].color;
+  $("final").innerHTML = `<span style="color:${TEAMS[0].color}">${TEAMS[0].short}</span> ${g.score[0]} – ${g.score[1]} <span style="color:${TEAMS[1].color}">${TEAMS[1].short}</span>`;
+  const ids = [...new Set([...g.seats, ...Object.keys(g.pts || {})])];
+  const rows = ids.map((id) => ({ id, team: teamOf(g, id), r: (g.pts || {})[id] || [0, nameOf(id), 0, 0] })).sort((a, b) => b.r[0] - a.r[0]);
+  $("table").innerHTML = `<tr><th>Player</th><th>Pts</th><th>Dunks</th><th>3s</th></tr>` + rows.map(({ id, team: k, r }) =>
+    `<tr class="${id === net.sessionId ? "me" : ""}"><td><i style="background:${k >= 0 ? TEAMS[k].color : "#777"}"></i>${esc(id === net.sessionId ? "You" : r[1] || nameOf(id))}</td><td>${r[0]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("");
+  $("again").hidden = seat < 0;
+  $("again").textContent = myReady === g.id ? "Waiting for the others…" : "Play again";
+  $("next").textContent = `Next game in ${Math.max(0, Math.ceil((g.endsAt - t) / 1000))}s`;
+  if (boardFor !== g.id) { boardFor = g.id; showBoard(((g.pts || {})[net.sessionId] || [0])[0]); }
+}
+function showBoard(myPts) {
+  const list = $("board");
+  if (!board) { list.innerHTML = "<li>Leaderboards need a connection.</li>"; return; }
+  list.innerHTML = "<li>Loading…</li>";
+  (myPts > 0 ? board.submit(myPts).catch(() => null) : Promise.resolve()).then(() => board.top(10)).then(({ entries }) => {
+    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score} pts</span></li>`).join("") : "<li>No scores yet. Be the first.</li>";
+  }).catch(() => { list.innerHTML = "<li>Couldn't load the leaderboard.</li>"; });
+}
+$("again").onclick = () => { const g = game(); if (g && g.phase === "over") { myReady = g.id; net.me.set("rdy", g.id); } };
+/** The shot meter over my head while I'm in the air, and how good the release was. */
+const v3 = new THREE.Vector3();
+function drawMeter(now) {
+  const show = me.shooting && !ATTRACT, rel = me.rel && now - me.rel.at < 900 ? me.rel : null;
+  $("meter").hidden = !show; $("tag").classList.toggle("on", !!rel);
+  if (!show && !rel) return;
+  v3.set(me.x, 2.95 + me.j, me.z).project(camera);
+  const sx = ((v3.x + 1) / 2) * innerWidth, sy = ((1 - v3.y) / 2) * innerHeight;
+  if (show) { const m = $("meter"); m.style.left = sx + "px"; m.style.top = sy + "px"; m.firstElementChild.style.width = `${clamp((now - me.jumpAt) / 1000 / (2 * peakT()), 0, 1) * 100}%`; }
+  if (rel) {
+    const tag = $("tag"), off = (rel.at - me.jumpAt) / 1000 - peakT();
+    tag.textContent = rel.q >= 1 ? "PERFECT!" : rel.q > 0.55 ? "GOOD" : off < 0 ? "EARLY" : "LATE";
+    tag.style.color = rel.q >= 1 ? "#4dff88" : rel.q > 0.55 ? "#ffd23f" : "#ff8a6a";
+    tag.style.left = sx + "px"; tag.style.top = sy - 6 + "px";
+  }
+}
+/** Two players picked the same color at once (the joiner's first state can be empty): the later sessionId picks again. */
+function takenColors(g) {
+  const out = new Set(Object.entries(S.entities.players || {}).filter(([id]) => id !== net.sessionId).map(([, p]) => p.c));
+  if (g) for (const c of botColors(g)) if (c) out.add(c);
+  return out;
+}
+function fixColor() {
+  if (!Object.entries(S.entities.players || {}).some(([id, p]) => id < net.sessionId && p.c === myColor)) return;
+  const taken = takenColors(game());
+  myColor = COLORS.find((c) => !taken.has(c)) || myColor; net.me.set("c", myColor);
+}
+
+// ── INPUT ───────────────────────────────────────────────────────────────────────────
+const keys = new Set(), SHOOT_KEYS = ["j", " ", "z"], PASS_KEYS = ["k", "x"], TURBO_KEYS = ["shift", "l"];
+let joy = null; // the thumb stick: { id, ox, oy, x, y } in screen px
+/** Where I want to run: the keys or the stick. Screen right is +x, screen down is +z (toward the camera). */
+function myInput() {
+  let u = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
+  let v = (keys.has("arrowdown") || keys.has("s") ? 1 : 0) - (keys.has("arrowup") || keys.has("w") ? 1 : 0);
+  if (joy) { const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy); u = d > 8 ? (dx / d) * Math.min(1, d / 44) : 0; v = d > 8 ? (dy / d) * Math.min(1, d / 44) : 0; }
+  const l = Math.hypot(u, v); if (l > 1) { u /= l; v /= l; }
+  return [u, v];
+}
+addEventListener("keydown", (e) => {
+  const k = e.key.toLowerCase(); unlockAudio();
+  if (["arrowleft", "arrowright", "arrowup", "arrowdown", " "].includes(k)) e.preventDefault();
+  if (e.repeat) return;
+  keys.add(k);
+  if (SHOOT_KEYS.includes(k)) shootDown(); if (PASS_KEYS.includes(k)) passDown(); if (TURBO_KEYS.includes(k)) input.turbo = true;
+});
+addEventListener("keyup", (e) => { const k = e.key.toLowerCase(); keys.delete(k); if (SHOOT_KEYS.includes(k)) shootUp(); if (TURBO_KEYS.includes(k)) input.turbo = false; });
+addEventListener("blur", () => { keys.clear(); input.turbo = false; shootUp(); });
+const stick = $("stick");
+cv.addEventListener("pointerdown", (e) => {
+  e.preventDefault(); unlockAudio();
+  if (e.pointerType === "mouse" || joy) return;
+  joy = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId);
+  stick.hidden = false; stick.style.left = e.clientX + "px"; stick.style.top = e.clientY + "px"; stick.firstElementChild.style.transform = "";
+});
+cv.addEventListener("pointermove", (e) => {
+  if (!joy || e.pointerId !== joy.id) return;
+  joy.x = e.clientX; joy.y = e.clientY;
+  const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy), m = Math.min(1, 40 / (d || 1));
+  stick.firstElementChild.style.transform = `translate(${dx * m}px, ${dy * m}px)`;
+});
+for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, (e) => { if (joy && e.pointerId === joy.id) { joy = null; stick.hidden = true; } });
+function holdButton(el, down, up) {
+  el.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); el.setPointerCapture(e.pointerId); el.classList.add("on"); down(); });
+  for (const ev of ["pointerup", "pointercancel"]) el.addEventListener(ev, () => { el.classList.remove("on"); if (up) up(); });
+}
+holdButton($("bShoot"), shootDown, shootUp);
+holdButton($("bPass"), passDown);
+holdButton($("bTurbo"), () => { input.turbo = true; }, () => { input.turbo = false; });
+$("pad").hidden = !touchUI;
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+
+// ── MAIN LOOP ───────────────────────────────────────────────────────────────────────
+let last = performance.now(), lastReal = performance.now(), lastHb = 0, lastHud = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const real = performance.now(); // a freeze is measured on the real clock (the frame's own time can be stale after one)
+  if (real - lastReal > 1000) { host.wasHost = false; host.last = null; host.quietUntil = real + 700; } // woke up: wait for fresh state, then adopt it
+  lastReal = real;
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; // never negative: the first frame can be stamped before `last`
+  if (now - lastHb > 1000) { lastHb = now; net.me.set("hb", Date.now()); fixColor(); }
+  syncViews(dt);
+  if (isHost()) hostTick(dt, now); else { host.wasHost = false; predictBall(dt); }
+  const g = game();
+  if (g) {
+    myTick(dt, g, now);
+    drawBallers(g, dt, now);
+    drawBall(g, dt, now);
+    drawHoops(dt, now);
+    aimCamera(g, dt);
+    drawMeter(now);
+    if (now - lastHud > 100) { lastHud = now; hud(g, now); }
+  }
+  tickParts(dt); tickPops(dt); tickCrowd(dt, now);
+  renderer.render(scene, camera);
+}
+
+(async function start() {
+  net = await connect();
+  me.id = net.sessionId;
+  net.onState((st) => { S = st; });
+  net.on("shoot", (m, from) => { if (isHost()) applyShoot(from, m); });
+  net.on("pass", (m, from) => { if (isHost()) applyPass(from, m); });
+  net.on("swipe", (m, from) => { if (isHost()) applySwipe(from, m); });
+  net.on("knock", (m) => { if (m && m.id === net.sessionId) knockMe(+m.dx || 0, +m.dz || 0); sfx("thud"); });
+  net.onDisconnect(() => { dropped = true; $("net").textContent = "Reconnecting…"; });
+  net.onReconnect(() => { dropped = false; });
+  if (!net.offline && typeof MP !== "undefined") board = MP.auth({ key: MP_CONNECT.key, apiUrl: MP_CONNECT.apiUrl }).leaderboard(CONFIG.board);
+  const taken = takenColors(null);
+  myColor = COLORS.find((c) => !taken.has(c)) || COLORS[Math.floor(Math.random() * COLORS.length)];
+  net.me.set({ n: myName, c: myColor, hb: Date.now() });
+  if (ATTRACT) Object.assign(CONFIG, { quarterMs: 600000, readyMs: 300, scoreMs: 1000, shotClockMs: 9000, botThink: 170, botThree: 0.25, botMid: 0, botDunk: 1,
+    botSpeed: 1, shotBase: 0.95, shotMin: 0.4, fireAfter: 2, dunkMake: 1, botBlock: 0.25, botSteal: 0.08, contestX: 0.85 });
+  if (ATTRACT || TEST) window.__sj = () => ({ g: game(), ball: { st: ball.st, own: ball.own, at: ball.at, k: ball.f && ball.f.k }, me: { x: r2(me.x), z: r2(me.z), j: r2(me.j) },
+    host: isHost(), bots: [...host.bots.values()].map((b) => [b.id, r2(b.x), r2(b.z), r2(b.j)]), CONFIG }); // for test scripts only
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
