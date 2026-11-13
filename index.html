@@ -35,6 +35,7 @@
   #turbo i { position: relative; display: block; width: 120px; height: 9px; border-radius: 5px; background: #0009; border: 1px solid #fff7; overflow: hidden; }
   #turbo b { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #ff6a1a, #ffd23f); }
   #turbo.fire b { background: linear-gradient(90deg, #ff2d00, #ffd23f, #fff6a0); }
+  #finder { padding: 3px 8px; border-radius: 8px; background: #0a0d1cd9; color: #ffd23f; font: 900 13px system-ui, sans-serif; transform: translateY(-50%); white-space: nowrap; }
   #net { bottom: max(6px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); font-size: 12px; opacity: .75; white-space: nowrap; }
   #stick { position: fixed; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%; border: 2px solid #fff6; background: #ffffff18; pointer-events: none; }
   #stick i { position: absolute; left: 30px; top: 30px; width: 44px; height: 44px; border-radius: 50%; background: #ffffff66; }
@@ -54,6 +55,7 @@
   td:first-child, th:first-child { text-align: left; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   td i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; } tr.me td { color: #ffd23f; font-weight: 700; }
   .card ol { text-align: left; margin: 0; padding-left: 26px; font-size: 14px; min-height: 22px; } .card li span { float: right; font-variant-numeric: tabular-nums; }
+  .card li.note { list-style: none; margin-left: -18px; opacity: .8; }
   .card p { margin: 8px 0 0; font-size: 13px; opacity: .8; }
   button.go { width: 100%; min-height: 48px; margin-top: 14px; border: 0; border-radius: 12px; background: #ff7a1a; color: #2a0e00; font: 800 17px system-ui, sans-serif; cursor: pointer; }
 </style>
@@ -70,6 +72,7 @@
 <div class="hud" id="hint"></div>
 <div class="hud" id="tag"></div>
 <div class="hud" id="meter" hidden><i></i><b></b></div>
+<div class="hud" id="finder" hidden></div>
 <div class="hud" id="turbo" hidden><span>TURBO</span><i><b></b></i></div>
 <div class="hud" id="net">Connecting…</div>
 <div id="stick" hidden><i></i></div>
@@ -77,7 +80,7 @@
 <div id="over" hidden><div class="card">
   <h2 id="winner"></h2><div id="final"></div>
   <table id="table"></table>
-  <h3>Most points in one game</h3><ol id="board"><li>Loading…</li></ol>
+  <h3>Most points in one game</h3><ol id="board"><li class="note">Loading…</li></ol>
   <button class="go" id="again">Play again</button><p id="next"></p>
 </div></div>
 <script type="module">
@@ -97,7 +100,7 @@
  *   ME ............ my baller: running, turbo, jumping, shooting, passing, stealing
  *   VIEWS ......... everyone else's ballers, eased between writes; the ball between writes
  *   DRAW .......... the ballers, the ball, effects and the broadcast camera that follows the ball
- *   HUD & RESULTS . scorebug, clocks, announcer callouts, results card, leaderboard
+ *   HUD & RESULTS . scorebug, clocks, announcer callouts, results card, leaderboard, the shot meter, the YOU arrow
  *   INPUT ......... keyboard, and a thumb stick + SHOOT / PASS / TURBO buttons on touch
  *   MAIN LOOP ..... one frame: host work, my baller, drawing
  *
@@ -324,8 +327,8 @@ function stepLoose(b, dt) {
     const h = dt / 3;
     b.vy -= BALL_G * h; b.x += b.vx * h; b.y += b.vy * h; b.z += b.vz * h;
     if (b.y < CONFIG.ballR) { b.y = CONFIG.ballR; if (b.vy < -1.2) { b.vy = -b.vy * 0.62; bounced = true; } else b.vy = 0; b.vx *= 0.9; b.vz *= 0.9; }
-    if (Math.abs(b.x) > HL + 1.5) { b.x = Math.sign(b.x) * (HL + 1.5); b.vx = -b.vx * 0.5; }
-    if (Math.abs(b.z) > HW + 1.5) { b.z = Math.sign(b.z) * (HW + 1.5); b.vz = -b.vz * 0.5; }
+    if (Math.abs(b.x) > HL + 1.2) { b.x = Math.sign(b.x) * (HL + 1.2); b.vx = -b.vx * 0.5; } // 1.2: even in a corner a baller (who stops 0.6 past the lines) can reach it
+    if (Math.abs(b.z) > HW + 1.2) { b.z = Math.sign(b.z) * (HW + 1.2); b.vz = -b.vz * 0.5; }
   }
   if (b.y <= CONFIG.ballR + 0.01) { const f = Math.exp(-1.4 * dt); b.vx *= f; b.vz *= f; }
   return bounced;
@@ -625,9 +628,11 @@ function arrangeSeats(seats, people) {
   }
   return s;
 }
-function newGame(id) {
-  const t = Date.now(), liveAt = t + CONFIG.readyMs + 800;
-  return { id, phase: "play", seats: arrangeSeats([0, 1, 2, 3].map(botId), humans()), score: [0, 0], q: 1, ko: 1, liveAt,
+/** A fresh game. Anyone who watched the last one (more than four people in the room) is seated first. */
+function newGame(id, sat = []) {
+  const t = Date.now(), liveAt = t + CONFIG.readyMs + 800, people = humans();
+  const order = [...people.filter((p) => !sat.includes(p)), ...people.filter((p) => sat.includes(p))];
+  return { id, phase: "play", seats: arrangeSeats([0, 1, 2, 3].map(botId), order), score: [0, 0], q: 1, ko: 1, liveAt,
     qEnds: liveAt + CONFIG.quarterMs, shotEnds: liveAt + CONFIG.shotClockMs, phaseEnds: 0, poss: 0, pts: {}, streak: ATTRACT ? { b1: 2 } : {}, fire: ATTRACT ? ["b1"] : [], call: null, win: -1, endsAt: 0 }; // the preview starts with someone on fire
 }
 /** A quarter starts: bots back on their spots (people walk back when they see `ko` change), the ball to the guard. */
@@ -851,7 +856,7 @@ function hostTick(dt, now) {
   else if (g.phase === "break" && t >= g.phaseEnds) g = nextQuarter(g, t);
   else if (g.phase === "over") {
     const seated = g.seats.filter((id) => !isBot(id)), ready = seated.length && seated.every((id) => (id === net.sessionId ? myReady : (S.entities.players[id] || {}).rdy) === g.id);
-    if (t > g.endsAt || ready) { g = writeGame(newGame(g.id + 1)); syncBots(g); tipOff(g); }
+    if (t > g.endsAt || ready) { g = writeGame(newGame(g.id + 1, g.seats)); syncBots(g); tipOff(g); }
   }
   for (const b of host.bots.values()) botTick(b, g, dt, now, t);
   if (now - host.lastBall > CONFIG.sendMs) writeBall(true);
@@ -876,6 +881,7 @@ function botTick(b, g, dt, now, t) {
     b.thinkAt = now + CONFIG.botThink * (0.7 + Math.random() * 0.6);
     if (g.phase === "play") botThink(b, g, seat, team, now, t);
     else if (g.phase === "score" && g.poss !== team) { b.tx = rimXOf(1 - team) * 0.55; b.tz = SPOTS[seat][1]; b.wantTurbo = false; } // just scored: get back on defence
+    else if (g.phase === "score" && nearestOf(g, team, ball) === b.id) { b.tx = ball.x + attackDir(team) * 0.5; b.tz = ball.z; b.wantTurbo = false; } // scored on: the nearest one fetches the ball
     else { b.tx = b.x; b.tz = b.z; b.wantTurbo = false; }
   }
   if (g.phase === "play") botReact(b, g, team, dt, now);
@@ -1288,11 +1294,11 @@ function hud(g, now) {
 }
 function showBoard(myPts) {
   const list = $("board");
-  if (!board) { list.innerHTML = "<li>Leaderboards need a connection.</li>"; return; }
-  list.innerHTML = "<li>Loading…</li>";
+  if (!board) { list.innerHTML = '<li class="note">Leaderboards need a connection.</li>'; return; }
+  list.innerHTML = '<li class="note">Loading…</li>';
   (myPts > 0 ? board.submit(myPts).catch(() => null) : Promise.resolve()).then(() => board.top(10)).then(({ entries }) => {
-    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score} pts</span></li>`).join("") : "<li>No scores yet. Be the first.</li>";
-  }).catch(() => { list.innerHTML = "<li>Couldn't load the leaderboard.</li>"; });
+    list.innerHTML = entries.length ? entries.map((e) => `<li>${esc(e.username || "Player")}<span>${e.score} pts</span></li>`).join("") : '<li class="note">No scores yet. Be the first.</li>';
+  }).catch(() => { list.innerHTML = `<li class="note">Couldn't load the leaderboard.</li>`; });
 }
 $("again").onclick = () => { const g = game(); if (g && g.phase === "over") { myReady = g.id; net.me.set("rdy", g.id); } };
 /** The shot meter over my head while I'm in the air, and how good the release was. */
@@ -1310,6 +1316,17 @@ function drawMeter(now) {
     tag.style.color = rel.q >= 1 ? "#4dff88" : rel.q > 0.55 ? "#ffd23f" : "#ff8a6a";
     tag.style.left = sx + "px"; tag.style.top = sy - 6 + "px";
   }
+}
+/** The camera follows the ball, not me: when my baller is out of its view, an arrow at that edge of the screen says where. */
+function drawFinder(g) {
+  const el = $("finder"), seated = !ATTRACT && seatOf(g, net.sessionId) >= 0 && g.phase !== "over";
+  v3.set(me.x, 1.2 + me.j, me.z).project(camera);
+  el.hidden = !seated || Math.abs(v3.x) <= 1;
+  if (el.hidden) return;
+  const left = v3.x < 0;
+  el.textContent = left ? "◀ YOU" : "YOU ▶";
+  el.style.left = left ? "8px" : ""; el.style.right = left ? "" : "8px";
+  el.style.top = clamp(((1 - v3.y) / 2) * innerHeight, 150, innerHeight * 0.62) + "px"; // clear of the scorebug and the touch buttons
 }
 /** Two players picked the same color at once (the joiner's first state can be empty): the later sessionId picks again. */
 function takenColors(g) {
@@ -1386,6 +1403,7 @@ function frame(now) {
     drawHoops(dt, now);
     aimCamera(g, dt);
     drawMeter(now);
+    drawFinder(g);
     if (now - lastHud > 100) { lastHud = now; hud(g, now); }
   }
   tickParts(dt); tickPops(dt); tickCrowd(dt, now);
